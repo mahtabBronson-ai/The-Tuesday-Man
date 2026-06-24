@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+{% block title %}Sign in - The Tuesday Man{% endblock %}
+
+{% block content %}
+<div class="auth-stage">
+  <div class="auth-card fade-in" style="max-width:400px;">
+
+    <div class="auth-brand">
+      <div class="mark">{{ ic('tee', 30) }}</div>
+      <h1>The Tuesday Man</h1>
+      <p>Royal Ottawa Golf Club</p>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for category, message in messages %}
+      <div class="flash-bar flash-{{ category }}" style="margin-bottom:16px;">
+        {{ ic('cross' if category == 'error' else 'info', 16) }} {{ message }}
+      </div>
+      {% endfor %}
+    {% endwith %}
+
+    <div class="card">
+      <div class="card-body">
+        <form class="settings-block" method="POST" action="{{ url_for('login') }}">
+          <div class="field">
+            <label for="username">Username</label>
+            <input class="inp" type="text" id="username" name="username"
+                   placeholder="Martin" autofocus autocomplete="username" />
+          </div>
+          <div class="field">
+            <label for="password">Password</label>
+            <input class="inp" type="password" id="password" name="password"
+                   placeholder="••••••••" autocomplete="current-password" />
+          </div>
+          <button class="btn btn-primary btn-full" type="submit">
+            {{ ic('signout', 15) }} Sign in
+          </button>
+        </form>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

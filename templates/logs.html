@@ -1,0 +1,120 @@
+{% extends 'base.html' %}
+{% block title %}Booking Log - The Tuesday Man{% endblock %}
+
+{% block content %}
+<div class="page-wide fade-in">
+
+  <div class="page-head">
+    <div class="eyebrow">{{ ic('list', 13) }} History</div>
+    <h1>Booking log</h1>
+    <p class="lede">Every attempt The Tuesday Man has made, most recent first. Each row links to a screenshot taken at booking time.</p>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <div class="ct">
+        <span class="icon-accent">{{ ic('flag', 17) }}</span>
+        <h2>All attempts</h2>
+        {% if total %}<span class="meta">{{ total }} total</span>{% endif %}
+      </div>
+      <div class="legend">
+        <span class="li">
+          <span class="pill pill-ok" style="font-size:11px;padding:3px 9px 3px 6px;">
+            <span class="shape shape-dot"></span>
+            <span class="glyph">{{ ic('check', 11) }}</span>
+            <span>Success</span>
+          </span>
+        </span>
+        <span class="li">
+          <span class="pill pill-warn" style="font-size:11px;padding:3px 9px 3px 6px;">
+            <span class="shape shape-diamond"></span>
+            <span class="glyph">{{ ic('triangle', 11) }}</span>
+            <span>Fallback</span>
+          </span>
+        </span>
+        <span class="li">
+          <span class="pill pill-err" style="font-size:11px;padding:3px 9px 3px 6px;">
+            <span class="shape shape-ring"></span>
+            <span class="glyph">{{ ic('cross', 11) }}</span>
+            <span>Failed</span>
+          </span>
+        </span>
+      </div>
+    </div>
+
+    {% if logs %}
+    <div class="card-body flush" style="overflow-x:auto;">
+      <table class="tbl">
+        <thead>
+          <tr>
+            <th>Booked at</th>
+            <th>Target date</th>
+            <th>Tee time</th>
+            <th>Status</th>
+            <th>Detail</th>
+            <th>Proof</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for log in logs %}
+          {% set s = log.status %}
+          <tr class="body-row">
+            <td class="mono dim">{{ log.timestamp[:16] }}</td>
+            <td style="font-weight:600;white-space:nowrap;">{{ log.target_date or '-' }}</td>
+            <td class="mono" style="font-weight:500;">{{ log.target_time or '-' }}</td>
+            <td>
+              <span class="pill pill-{{ 'ok' if s == 'SUCCESS' else 'err' if s == 'FAIL' else 'warn' if s == 'FALLBACK' else 'idle' }}">
+                <span class="shape shape-{{ 'dot' if s == 'SUCCESS' else 'ring' if s == 'FAIL' else 'diamond' if s == 'FALLBACK' else 'bars' }}"></span>
+                <span class="glyph">
+                  {{ ic('check' if s == 'SUCCESS' else 'cross' if s == 'FAIL' else 'triangle' if s == 'FALLBACK' else 'pause', 13) }}
+                </span>
+                <span>{{ s }}</span>
+              </span>
+            </td>
+            <td class="dim" style="min-width:220px;font-size:13px;">
+              {{ log.log_text[:80] if log.log_text else '-' }}
+            </td>
+            <td>
+              {% if log.screenshot_path %}
+              <a href="{{ url_for('serve_screenshot', filename=log.screenshot_path.split('screenshots/')[-1]) }}"
+                 target="_blank"
+                 style="display:inline-flex;align-items:center;gap:5px;color:var(--accent);font-size:13px;font-weight:600;text-decoration:none;">
+                {{ ic('image', 13) }} View
+              </a>
+              {% else %}
+              <span class="faint">-</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pagination -->
+    {% if total_pages > 1 %}
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:14px var(--pad);border-top:1px solid var(--line-soft);">
+      <span class="faint" style="font-size:13px;">Page {{ page }} of {{ total_pages }}</span>
+      <div style="display:flex;gap:8px;">
+        {% if page > 1 %}
+        <a href="{{ url_for('logs', page=page-1) }}" class="btn btn-ghost">{{ ic('arrowUp', 13) }} Previous</a>
+        {% endif %}
+        {% if page < total_pages %}
+        <a href="{{ url_for('logs', page=page+1) }}" class="btn btn-ghost">Next {{ ic('arrowDown', 13) }}</a>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+
+    {% else %}
+    <div class="empty-state">
+      <div class="icon">{{ ic('list', 32) }}</div>
+      <h3>No bookings yet</h3>
+      <p>The log will fill up once the first booking runs on Wednesday morning.</p>
+    </div>
+    {% endif %}
+
+  </div>
+
+</div>
+{% endblock %}

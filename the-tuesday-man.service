@@ -1,0 +1,22 @@
+[Unit]
+Description=The Tuesday Man — Golf Tee Time Booker (Flask/Gunicorn)
+After=network.target
+
+[Service]
+Type=simple
+User=tuesdayman
+Group=tuesdayman
+WorkingDirectory=/opt/tuesdayman
+ExecStart=/opt/tuesdayman/venv/bin/gunicorn \
+    --workers 1 \
+    --bind 127.0.0.1:5000 \
+    --timeout 120 \
+    --access-logfile /opt/tuesdayman/data/gunicorn-access.log \
+    --error-logfile /opt/tuesdayman/data/gunicorn-error.log \
+    app:app
+Restart=always
+RestartSec=5
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target

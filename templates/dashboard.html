@@ -1,0 +1,223 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard - The Tuesday Man{% endblock %}
+
+{% block content %}
+<div class="page fade-in">
+
+  <div class="page-head">
+    <div class="eyebrow">{{ ic('flag', 13) }} Tuesday standing game</div>
+    <h1>Good morning, Martin.</h1>
+    <p class="lede">Your tee time is handled. The Tuesday Man books your Tuesday game every Wednesday morning - here's where things stand.</p>
+  </div>
+
+  <!-- Stat cards -->
+  <div class="stat-grid" style="margin-bottom:var(--gap);">
+
+    <div class="stat">
+      <div class="stat-top">
+        <span class="k">Auto-booking</span>
+        <span class="icon">{{ ic('bolt', 19) }}</span>
+      </div>
+      <div class="v">
+        {% if cfg.booking_active %}
+          <span style="display:inline-flex;align-items:center;gap:9px;">
+            <span class="shape shape-dot" style="color:var(--ok)"></span> Active
+          </span>
+        {% else %}
+          <span style="display:inline-flex;align-items:center;gap:9px;color:var(--idle);">
+            <span class="shape shape-bars" style="color:var(--idle)"></span> Paused
+          </span>
+        {% endif %}
+      </div>
+      <div class="foot">
+        {% if cfg.booking_active %}Running as scheduled{% else %}No bookings will be made{% endif %}
+      </div>
+    </div>
+
+    <div class="stat">
+      <div class="stat-top">
+        <span class="k">Next booking run</span>
+        <span class="icon">{{ ic('calendar', 19) }}</span>
+      </div>
+      <div class="v">
+        <span style="font-family:var(--font-mono);font-size:22px;">{{ fmt_date(run_date) }}</span>
+      </div>
+      <div class="foot">Targets <strong>{{ fmt_date(target_date) }}</strong></div>
+    </div>
+
+    <div class="stat">
+      <div class="stat-top">
+        <span class="k">Opens at</span>
+        <span class="icon">{{ ic('clock', 19) }}</span>
+      </div>
+      <div class="v">
+        {{ opens_str.split(' ')[0] }}<span class="unit"> {{ opens_str.split(' ')[1] }}</span>
+      </div>
+      <div class="foot">Fires the instant the sheet opens</div>
+    </div>
+
+  </div><!-- /stat-grid -->
+
+  <div class="section-gap">
+
+    <!-- Preferred tee times -->
+    <div class="card">
+      <div class="card-head">
+        <div class="ct">
+          <span class="icon-accent">{{ ic('target', 17) }}</span>
+          <h2>Preferred tee times</h2>
+          {% if times %}<span class="meta">{{ times|length }} in order</span>{% endif %}
+        </div>
+        <a href="{{ url_for('settings') }}#times" class="btn btn-quiet">
+          Reorder {{ ic('arrowDown', 13) }}
+        </a>
+      </div>
+      <div class="card-body flush">
+        {% if times %}
+          {% for t in times %}
+          <div class="tee-row {{ 'is-top' if loop.index == 1 }}">
+            <span class="tee-rank">{{ loop.index }}</span>
+            <span class="tee-time">{{ t }}</span>
+            <span class="tee-tag">
+              {% if loop.index == 1 %}First choice
+              {% elif loop.index == 2 %}Second choice
+              {% else %}{{ ordinal(loop.index) }} choice{% endif %}
+            </span>
+          </div>
+          {% endfor %}
+        {% else %}
+          <div class="empty-state">
+            <div class="icon">{{ ic('target', 28) }}</div>
+            <h3>No times configured</h3>
+            <p>Add preferred tee times in Settings.</p>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Foursome -->
+    <div class="card">
+      <div class="card-head">
+        <div class="ct">
+          <span class="icon-accent">{{ ic('users', 17) }}</span>
+          <h2>Your foursome</h2>
+          <span class="meta">{{ buddies|length + 1 }} of 4</span>
+        </div>
+        <a href="{{ url_for('buddies') }}" class="btn btn-quiet">
+          Manage {{ ic('external', 13) }}
+        </a>
+      </div>
+      <div class="card-body">
+        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:16px 22px;">
+          <!-- Martin (always first) -->
+          <div style="display:flex;align-items:center;gap:13px;">
+            {% if profile_picture_url %}
+            <img src="{{ profile_picture_url }}" alt="Martin" style="width:42px;height:42px;border-radius:50%;object-fit:cover;flex-shrink:0;">
+            {% else %}
+            <span class="avatar lead" style="background:#1E3A2C;width:42px;height:42px;font-size:18px;">M</span>
+            {% endif %}
+            <div style="line-height:1.25;">
+              <div style="font-weight:600;font-size:14.5px;">Martin McGarry <span class="faint" style="font-weight:500;"> · you</span></div>
+              <div class="faint mono" style="font-size:12px;">Organiser</div>
+            </div>
+          </div>
+          {% for b in buddies %}
+          <div style="display:flex;align-items:center;gap:13px;">
+            <span class="avatar" style="background:{{ b.color }};width:42px;height:42px;font-size:18px;">{{ b.name[0] }}</span>
+            <div style="line-height:1.25;">
+              <div style="font-weight:600;font-size:14.5px;">{{ b.name }}</div>
+              {% if b.user_id %}<div class="faint mono" style="font-size:12px;">ID {{ b.user_id }}</div>{% endif %}
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Health summary -->
+    <div class="card">
+      <div class="card-head">
+        <div class="ct">
+          <span class="icon-accent">{{ ic('shield', 17) }}</span>
+          <h2>Health check</h2>
+          {% if last_inspector %}<span class="meta">{{ last_inspector.timestamp[:16] }}</span>{% endif %}
+        </div>
+        <a href="{{ url_for('health') }}" class="btn btn-quiet">
+          Open inspector {{ ic('external', 13) }}
+        </a>
+      </div>
+      <div class="card-body">
+        {% if last_inspector %}
+          {% set status = last_inspector.overall_status %}
+          <div class="row-between">
+            <div style="display:flex;align-items:center;gap:12px;">
+              <span class="pill pill-{{ 'ok' if status == 'PASS' else 'err' if status == 'FAIL' else 'warn' }}">
+                <span class="shape shape-{{ 'dot' if status == 'PASS' else 'ring' if status == 'FAIL' else 'diamond' }}"></span>
+                <span class="glyph">
+                  {{ ic('check' if status == 'PASS' else 'cross' if status == 'FAIL' else 'triangle', 13) }}
+                </span>
+                <span>{{ status }}</span>
+              </span>
+              <span style="font-size:14.5px;">Last run complete</span>
+            </div>
+          </div>
+        {% else %}
+          <div class="note">
+            {{ ic('info', 15) }}
+            <span>No inspector runs yet. The health inspector will be available in Phase 3 - it runs every Tuesday at 11 PM to verify the booking system before Wednesday morning.</span>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Recent bookings -->
+    <div class="card">
+      <div class="card-head">
+        <div class="ct">
+          <span class="icon-accent">{{ ic('list', 17) }}</span>
+          <h2>Recent bookings</h2>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <button class="btn btn-ghost" id="run-now-btn" {% if not cfg.booking_active %}disabled{% endif %}>
+            {{ ic('bolt', 15) }} Run dry run now
+          </button>
+          <a href="{{ url_for('logs') }}" class="btn btn-quiet">
+            Full log {{ ic('external', 13) }}
+          </a>
+        </div>
+      </div>
+      <div class="card-body flush">
+        {% if recent_logs %}
+          {% for log in recent_logs %}
+          {% set s = log.status %}
+          <div class="hist-row">
+            <span class="hist-date">{{ log.timestamp[:10] }}</span>
+            <div class="hist-main">
+              <span class="t">{{ log.target_time or '-' }}</span>
+              <span class="s">{{ log.log_text[:60] if log.log_text else 'No details' }}</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:16px;margin-left:auto;">
+              {% if log.duration_ms %}
+              <span class="hist-speed">{{ '%.1f' % (log.duration_ms / 1000) }}s</span>
+              {% endif %}
+              <span class="pill pill-{{ 'ok' if s == 'SUCCESS' else 'err' if s == 'FAIL' else 'warn' if s == 'FALLBACK' else 'idle' }}">
+                <span class="shape shape-{{ 'dot' if s == 'SUCCESS' else 'ring' if s == 'FAIL' else 'diamond' if s == 'FALLBACK' else 'bars' }}"></span>
+                <span class="glyph">{{ ic('check' if s == 'SUCCESS' else 'cross' if s == 'FAIL' else 'triangle' if s == 'FALLBACK' else 'pause', 13) }}</span>
+                <span>{{ s }}</span>
+              </span>
+            </div>
+          </div>
+          {% endfor %}
+        {% else %}
+          <div class="empty-state">
+            <div class="icon">{{ ic('list', 28) }}</div>
+            <h3>No bookings yet</h3>
+            <p>The log will fill up once the first booking runs on Wednesday morning.</p>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+  </div><!-- /section-gap -->
+</div>
+{% endblock %}

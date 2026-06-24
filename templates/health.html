@@ -1,0 +1,190 @@
+{% extends 'base.html' %}
+{% block title %}Health - The Tuesday Man{% endblock %}
+
+{% block content %}
+<div class="page fade-in">
+
+  <div class="page-head">
+    <div class="eyebrow">{{ ic('shield', 13) }} Inspector</div>
+    <h1>Health</h1>
+    <p class="lede">Before every booking, the inspector quietly rehearses the whole run against the club's live site - so booking morning holds no surprises.</p>
+  </div>
+
+  <div class="section-gap">
+
+    <!-- Summary card -->
+    <div class="card">
+      <div class="card-body">
+        <div class="row-between" style="flex-wrap:wrap;gap:16px;">
+          {% if runs %}
+            {% set last = runs[0] %}
+            {% set s = last.overall_status %}
+            <div style="display:flex;align-items:center;gap:16px;">
+              <div>
+                <div class="k" style="margin-bottom:8px;font-size:11px;letter-spacing:.15em;text-transform:uppercase;color:var(--ink-faint);font-weight:700;">Last inspector run</div>
+                <div style="display:flex;align-items:center;gap:12px;">
+                  <span class="pill pill-{{ 'ok' if s == 'PASS' else 'err' if s == 'FAIL' else 'warn' }}">
+                    <span class="shape shape-{{ 'dot' if s == 'PASS' else 'ring' if s == 'FAIL' else 'diamond' }}"></span>
+                    <span class="glyph">{{ ic('check' if s == 'PASS' else 'cross' if s == 'FAIL' else 'triangle', 13) }}</span>
+                    <span>{{ s }}</span>
+                  </span>
+                  <span class="serif" style="font-size:20px;">{{ last.timestamp[:16] }}</span>
+                </div>
+              </div>
+            </div>
+            <div style="text-align:right;">
+              <div class="faint mono" style="font-size:12.5px;margin-bottom:10px;">
+                {{ 'Changes detected' if last.changes_detected else 'No structural changes' }}
+              </div>
+              <button class="btn btn-primary" id="run-inspector-btn">
+                {{ ic('refresh', 15) }} Run inspector now
+              </button>
+            </div>
+          {% else %}
+            <div>
+              <div class="k" style="margin-bottom:8px;font-size:11px;letter-spacing:.15em;text-transform:uppercase;color:var(--ink-faint);font-weight:700;">Inspector status</div>
+              <span class="pill pill-idle">
+                <span class="shape shape-bars"></span>
+                <span class="glyph">{{ ic('pause', 13) }}</span>
+                <span>Not yet run</span>
+              </span>
+            </div>
+            <div style="text-align:right;">
+              <button class="btn btn-primary" id="run-inspector-btn" disabled>
+                {{ ic('refresh', 15) }} Run inspector now
+              </button>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- The 6 checks (static for Phase 1) -->
+    <div class="card">
+      <div class="card-head">
+        <div class="ct">
+          <span class="icon-accent">{{ ic('list', 17) }}</span>
+          <h2>Individual checks</h2>
+          <span class="meta">6 checks</span>
+        </div>
+        <div class="legend">
+          <span class="li">
+            <span class="pill pill-ok" style="font-size:11px;padding:3px 9px 3px 6px;">
+              <span class="shape shape-dot"></span>
+              <span class="glyph">{{ ic('check', 11) }}</span>
+              <span>Pass</span>
+            </span>
+          </span>
+          <span class="li">
+            <span class="pill pill-warn" style="font-size:11px;padding:3px 9px 3px 6px;">
+              <span class="shape shape-diamond"></span>
+              <span class="glyph">{{ ic('triangle', 11) }}</span>
+              <span>Warn</span>
+            </span>
+          </span>
+          <span class="li">
+            <span class="pill pill-err" style="font-size:11px;padding:3px 9px 3px 6px;">
+              <span class="shape shape-ring"></span>
+              <span class="glyph">{{ ic('cross', 11) }}</span>
+              <span>Fail</span>
+            </span>
+          </span>
+        </div>
+      </div>
+      <div class="card-body flush">
+        <div class="check-grid">
+          {% set checks = [
+            ('Login flow',         'Verifies credentials, session cookie, and redirect to /profile.'),
+            ('Booking page',       'Confirms /booking loads and date picker elements exist.'),
+            ('Tee times API',      'Calls the JSON endpoint and validates the response structure.'),
+            ('Slot hold',          'Places a temporary hold on a slot and verifies then releases it.'),
+            ('Booking details',    'Checks all UI selectors: golfer panel, buddy group, Book Now button.'),
+            ('Session cleanup',    'Logs out, confirms no hold was left behind, cookies cleared.'),
+          ] %}
+          {% if runs %}
+            {% set last_report = runs[0].report_json | tojson %}
+          {% endif %}
+          {% for label, detail in checks %}
+          <div class="check-cell">
+            <div class="ico ico-idle">{{ ic('pause', 17) }}</div>
+            <div class="cl">{{ label }}</div>
+            <div class="cd">{{ detail }}</div>
+            <div class="ct-foot">
+              <span class="pill pill-idle" style="font-size:11px;">
+                <span class="shape shape-bars"></span>
+                <span class="glyph">{{ ic('pause', 11) }}</span>
+                <span>Pending</span>
+              </span>
+              <span class="dur">-</span>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Page-structure watch -->
+    <div class="card">
+      <div class="card-head">
+        <div class="ct">
+          <span class="icon-accent">{{ ic('globe', 17) }}</span>
+          <h2>Page-structure watch</h2>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="note">
+          {{ ic('info', 15) }}
+          <span>
+            On each run, the inspector snapshots key HTML sections of the login page, booking page, and details page.
+            If anything changes between runs, you'll get a warning - even if all selectors still work.
+            This catches site updates before they break your booking.
+          </span>
+        </div>
+        <div class="divline" style="margin:16px 0;"></div>
+        <div style="display:flex;align-items:center;gap:10px;font-size:13px;color:var(--ink-soft);">
+          <span class="shape shape-bars" style="color:var(--idle)"></span>
+          Inspector not yet run - will activate in Phase 3.
+        </div>
+      </div>
+    </div>
+
+    <!-- Inspector history -->
+    <div class="card">
+      <div class="card-head">
+        <div class="ct">
+          <span class="icon-accent">{{ ic('clock', 17) }}</span>
+          <h2>Inspector history</h2>
+        </div>
+      </div>
+      <div class="card-body flush">
+        {% if runs %}
+          {% for r in runs %}
+          {% set s = r.overall_status %}
+          <div class="hist-row">
+            <span class="hist-date" style="width:140px;">{{ r.timestamp[:16] }}</span>
+            <div class="hist-main">
+              <span class="s" style="font-size:13.5px;color:var(--ink);">
+                {{ 'All checks clean' if s == 'PASS' else 'Issues detected' }}
+                {% if r.changes_detected %} · structural change{% endif %}
+              </span>
+            </div>
+            <span class="pill pill-{{ 'ok' if s == 'PASS' else 'err' if s == 'FAIL' else 'warn' }}">
+              <span class="shape shape-{{ 'dot' if s == 'PASS' else 'ring' if s == 'FAIL' else 'diamond' }}"></span>
+              <span class="glyph">{{ ic('check' if s == 'PASS' else 'cross' if s == 'FAIL' else 'triangle', 13) }}</span>
+              <span>{{ s }}</span>
+            </span>
+          </div>
+          {% endfor %}
+        {% else %}
+          <div class="empty-state">
+            <div class="icon">{{ ic('shield', 28) }}</div>
+            <h3>No runs yet</h3>
+            <p>Inspector will run automatically every Tuesday at 11 PM once Phase 3 is complete.</p>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

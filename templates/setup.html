@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+{% block title %}Setup - The Tuesday Man{% endblock %}
+
+{% block content %}
+<div class="auth-stage">
+  <div class="auth-card fade-in" style="max-width:480px;">
+
+    <div class="auth-brand">
+      <div class="mark">{{ ic('tee', 30) }}</div>
+      <h1>The Tuesday Man</h1>
+      <p>Enter your Royal Ottawa Golf Club login to get started.</p>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for category, message in messages %}
+      <div class="flash-bar flash-{{ category }}" style="margin-bottom:16px;">
+        {{ ic('cross' if category == 'error' else 'info', 16) }} {{ message }}
+      </div>
+      {% endfor %}
+    {% endwith %}
+
+    <div class="card">
+      <div class="card-body">
+        <form class="settings-block" method="POST" action="{{ url_for('setup') }}">
+
+          <div class="note" style="margin-bottom:4px;">
+            {{ ic('shield', 15) }}
+            <span>Credentials are encrypted at rest and used only to book. Never stored in plain text.</span>
+          </div>
+
+          <div class="settings-block">
+            <div class="field">
+              <label for="golf_username">Club account email</label>
+              <input class="inp" type="email" id="golf_username" name="golf_username"
+                     placeholder="your@email.com" autocomplete="username" autofocus required />
+            </div>
+            <div class="field">
+              <label for="golf_password_inp">Club password</label>
+              <div class="inp-wrap">
+                <input class="inp" type="password" id="golf_password_inp" name="golf_password"
+                       placeholder="Your club site password" autocomplete="off" />
+                <button type="button" class="icon-btn" data-pw-toggle="golf_password_inp" aria-label="Show password">
+                  {{ ic('eye', 15) }}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="divline"></div>
+
+          <div class="note">
+            {{ ic('info', 15) }}
+            <span>Your three regular playing partners (Hugh Doyle, Patrick Brooks, Andrew Sojonky) will be pre-loaded. You can edit them on the Buddies page.</span>
+          </div>
+
+          <button class="btn btn-primary btn-full" type="submit">
+            {{ ic('check', 15) }} Save &amp; go to dashboard
+          </button>
+
+        </form>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

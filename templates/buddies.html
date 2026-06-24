@@ -1,0 +1,158 @@
+{% extends 'base.html' %}
+{% block title %}Buddies - The Tuesday Man{% endblock %}
+
+{% block content %}
+<div class="page fade-in" style="max-width:640px;">
+
+  <div class="page-head">
+    <div class="eyebrow">{{ ic('users', 13) }} The regulars</div>
+    <h1>Buddies</h1>
+    <p class="lede">Your standing foursome. The Tuesday Man books for you plus up to three guests -
+      {% if buddies|length < 3 %}{{ 3 - buddies|length }} {{ 'spot' if 3 - buddies|length == 1 else 'spots' }} open.{% else %}foursome is full.{% endif %}
+    </p>
+  </div>
+
+  <div class="section-gap">
+
+    <!-- Add buddy -->
+    <div class="card">
+      <div class="card-head">
+        <div class="ct">
+          <span class="icon-accent">{{ ic('plus', 17) }}</span>
+          <h2>Add a buddy</h2>
+        </div>
+      </div>
+      <div class="card-body">
+        <form method="POST" action="{{ url_for('buddies_add') }}">
+          <div style="display:flex;gap:10px;align-items:flex-end;">
+            <div class="field" style="flex:1;">
+              <label for="buddy_name">Full name</label>
+              <input class="inp" id="buddy_name" name="name" placeholder="Full name"
+                     {{ 'disabled' if buddies|length >= 3 }} />
+            </div>
+            <div class="field" style="max-width:130px;">
+              <label for="buddy_uid">User ID <span class="faint">(optional)</span></label>
+              <input class="inp mono" id="buddy_uid" name="user_id" placeholder="e.g. 338"
+                     {{ 'disabled' if buddies|length >= 3 }} />
+            </div>
+            <button class="btn btn-primary" type="submit" {{ 'disabled' if buddies|length >= 3 }}>
+              {{ ic('plus', 15) }} Add
+            </button>
+          </div>
+          {% if buddies|length >= 3 %}
+          <div class="note" style="margin-top:12px;">
+            {{ ic('info', 15) }}
+            <span>Your foursome is full. Remove someone to add a new guest.</span>
+          </div>
+          {% endif %}
+        </form>
+      </div>
+    </div>
+
+    <!-- Current foursome -->
+    <div class="card">
+      <div class="card-head">
+        <div class="ct">
+          <span class="icon-accent">{{ ic('flag', 17) }}</span>
+          <h2>Current foursome</h2>
+          <span class="meta">{{ buddies|length + 1 }} of 4</span>
+        </div>
+      </div>
+      <div class="card-body flush">
+
+        <!-- Martin (fixed) -->
+        <div class="tee-row" style="background:var(--surface-2);">
+          <span class="avatar lead" style="background:#1E3A2C;width:40px;height:40px;font-size:17px;">M</span>
+          <div style="line-height:1.3;">
+            <div style="font-weight:600;font-size:14.5px;">
+              Martin McGarry <span class="faint" style="font-weight:500;"> · you</span>
+            </div>
+            <div class="faint mono" style="font-size:12px;">ID 755 · organiser</div>
+          </div>
+          <span class="tee-tag" style="margin-left:auto;">Always plays</span>
+        </div>
+
+        {% if buddies %}
+          {% for b in buddies %}
+          <div class="tee-row" style="flex-wrap:wrap;">
+            <span class="avatar" style="background:{{ b.color }};width:40px;height:40px;font-size:17px;">{{ b.name[0] }}</span>
+            <div style="line-height:1.3;flex:1;">
+              <div style="font-weight:600;font-size:14.5px;">{{ b.name }}</div>
+              <div class="faint mono" style="font-size:12px;">
+                {% if b.user_id %}ID {{ b.user_id }}{% else %}No site ID set{% endif %}
+              </div>
+            </div>
+            <div class="tee-actions">
+              <form method="POST" action="{{ url_for('buddies_move', buddy_id=b.id, direction='up') }}" style="display:inline;">
+                <button class="icon-btn" type="submit" {{ 'disabled' if loop.first }} aria-label="Move up">
+                  {{ ic('arrowUp', 15) }}
+                </button>
+              </form>
+              <form method="POST" action="{{ url_for('buddies_move', buddy_id=b.id, direction='down') }}" style="display:inline;">
+                <button class="icon-btn" type="submit" {{ 'disabled' if loop.last }} aria-label="Move down">
+                  {{ ic('arrowDown', 15) }}
+                </button>
+              </form>
+              <button class="icon-btn" type="button" data-edit-toggle="edit-{{ b.id }}" aria-label="Edit">
+                {{ ic('edit', 15) }}
+              </button>
+              <form method="POST" action="{{ url_for('buddies_remove', buddy_id=b.id) }}" style="display:inline;"
+                    onsubmit="return confirm('Remove {{ b.name }}?')">
+                <button class="icon-btn danger" type="submit" aria-label="Remove">
+                  {{ ic('trash', 15) }}
+                </button>
+              </form>
+            </div>
+            <div id="edit-{{ b.id }}" style="display:none;width:100%;padding:10px 4px 4px;">
+              <form method="POST" action="{{ url_for('buddies_edit', buddy_id=b.id) }}"
+                    style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;">
+                <div class="field" style="flex:1;min-width:140px;margin:0;">
+                  <label style="font-size:12px;">Name</label>
+                  <input class="inp" name="name" value="{{ b.name }}" required />
+                </div>
+                <div class="field" style="max-width:120px;margin:0;">
+                  <label style="font-size:12px;">User ID</label>
+                  <input class="inp mono" name="user_id" value="{{ b.user_id or '' }}" placeholder="e.g. 338" />
+                </div>
+                <button class="btn btn-primary" type="submit" style="height:38px;">
+                  {{ ic('check', 14) }} Save
+                </button>
+              </form>
+            </div>
+          </div>
+          {% endfor %}
+        {% else %}
+          <div class="empty-state">
+            <div class="icon">{{ ic('users', 28) }}</div>
+            <h3>No buddies yet</h3>
+            <p>Add your playing partners above.</p>
+          </div>
+        {% endif %}
+
+      </div>
+    </div>
+
+    <!-- Buddy group info -->
+    <div class="card">
+      <div class="card-head">
+        <div class="ct">
+          <span class="icon-accent">{{ ic('users', 17) }}</span>
+          <h2>Buddy group</h2>
+          <span class="meta">site group ID</span>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="note">
+          {{ ic('info', 15) }}
+          <span>
+            The Tuesday Man uses the <strong>Tuesday Morning Group</strong> (group ID 73) on the Royal Ottawa booking site.
+            This adds all three buddies in a single click. The group ID is set in
+            <a href="{{ url_for('settings') }}#course" style="color:var(--accent);font-weight:600;">Settings → Advanced</a>.
+          </span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

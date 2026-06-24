@@ -1,0 +1,42 @@
+# ── Secrets — NEVER commit these ──────────────────────────────────────────────
+data/.encryption_key
+data/.secret_key
+data/app.db
+
+# ── Runtime / generated data ───────────────────────────────────────────────────
+data/*.log
+data/tee_times_raw.json
+data/screenshots/
+data/profile.*
+
+# ── Tee-time booker dev artifacts ──────────────────────────────────────────────
+tee-time-booker/screenshots/
+tee-time-booker/tee_times_*.json
+tee-time-booker/booking.log
+tee-time-booker/config.py
+tee-time-booker/live_dryrun.py
+tee-time-booker/recon.py
+tee-time-booker/*.html
+
+# ── Root-level dev screenshots and prototypes ──────────────────────────────────
+/*.png
+/*.zip
+/*.html
+/*.jsx
+
+# ── Python ─────────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+
+# ── Editor / OS ────────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db

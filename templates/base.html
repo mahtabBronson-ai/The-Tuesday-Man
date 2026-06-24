@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>{% block title %}The Tuesday Man{% endblock %}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Hanken+Grotesk:wght@400;500;600;700&family=Spline+Sans+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+{% block head %}{% endblock %}
+</head>
+<body>
+<div id="root-wrap">
+
+{% if logged_in %}
+<header class="topbar">
+  <a href="{{ url_for('dashboard') }}" class="brand">
+    <span class="mark">{{ ic('tee', 19) }}</span>
+    <div>
+      <div class="name">The Tuesday Man</div>
+    </div>
+  </a>
+
+  <nav class="topnav">
+    <a href="{{ url_for('dashboard') }}" class="{{ 'active' if request_endpoint == 'dashboard' }}">Dashboard</a>
+    <a href="{{ url_for('settings') }}"  class="{{ 'active' if request_endpoint in ('settings','settings_credentials','settings_booking','settings_schedule','settings_notifications','settings_course','times_add','times_remove','times_move') }}">Settings</a>
+    <a href="{{ url_for('buddies') }}"   class="{{ 'active' if request_endpoint in ('buddies','buddies_add','buddies_remove','buddies_move') }}">Buddies</a>
+    <a href="{{ url_for('health') }}"    class="{{ 'active' if request_endpoint == 'health' }}">Health</a>
+    <a href="{{ url_for('logs') }}"      class="{{ 'active' if request_endpoint == 'logs' }}">Logs</a>
+  </nav>
+
+  <div class="nav-tail">
+    <div class="who">
+      <div class="label">
+        <div class="n">Martin</div>
+        <div class="r">Member</div>
+      </div>
+      {% if profile_picture_url %}
+      <img src="{{ profile_picture_url }}" alt="Martin" style="width:36px;height:36px;border-radius:50%;object-fit:cover;flex-shrink:0;">
+      {% else %}
+      <span class="avatar lead" style="background:#1E3A2C;width:36px;height:36px;font-size:15px;">M</span>
+      {% endif %}
+      <a href="{{ url_for('logout') }}" class="btn btn-quiet" style="font-size:12.5px;gap:6px;padding:6px 10px;">
+        {{ ic('signout', 14) }} Sign out
+      </a>
+    </div>
+  </div>
+</header>
+{% endif %}
+
+<main class="page-wrap">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div style="max-width:var(--maxw);margin:0 auto 0;">
+        {% for category, message in messages %}
+        <div class="flash-bar flash-{{ category }}">
+          {% if category == 'success' %}{{ ic('check', 16) }}{% elif category == 'error' %}{{ ic('cross', 16) }}{% else %}{{ ic('info', 16) }}{% endif %}
+          {{ message }}
+        </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  {% block content %}{% endblock %}
+</main>
+
+</div>
+<script src="{{ url_for('static', filename='app.js') }}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

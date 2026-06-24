@@ -1,0 +1,343 @@
+{% extends 'base.html' %}
+{% block title %}Settings - The Tuesday Man{% endblock %}
+
+{% block content %}
+<div class="page fade-in">
+
+  <div class="page-head">
+    <div class="eyebrow">{{ ic('edit', 13) }} Preferences</div>
+    <h1>Settings</h1>
+    <p class="lede">Configure how The Tuesday Man books your Tuesdays.</p>
+  </div>
+
+  <div class="section-gap">
+
+    <!-- Profile photo -->
+    <div class="card" id="profile">
+      <div class="card-head">
+        <div class="ct">
+          <span class="icon-accent">{{ ic('users', 17) }}</span>
+          <h2>Profile photo</h2>
+        </div>
+      </div>
+      <div class="card-body">
+        <div style="display:flex;align-items:center;gap:22px;">
+          {% if profile_picture_url %}
+          <img src="{{ profile_picture_url }}" alt="Martin" style="width:72px;height:72px;border-radius:50%;object-fit:cover;flex-shrink:0;border:2px solid var(--line-soft);">
+          {% else %}
+          <span class="avatar lead" style="background:#1E3A2C;width:72px;height:72px;font-size:28px;flex-shrink:0;">M</span>
+          {% endif %}
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            <form method="POST" action="{{ url_for('settings_profile_picture') }}" enctype="multipart/form-data">
+              <label class="btn btn-ghost" style="cursor:pointer;display:inline-flex;">
+                {{ ic('image', 15) }} {{ 'Change photo' if profile_picture_url else 'Upload photo' }}
+                <input type="file" name="photo" accept="image/*" style="display:none;" onchange="this.form.submit()">
+              </label>
+            </form>
+            {% if profile_picture_url %}
+            <form method="POST" action="{{ url_for('settings_profile_picture_remove') }}">
+              <button class="btn btn-quiet" type="submit" style="font-size:13px;color:var(--err);">Remove photo</button>
+            </form>
+            {% endif %}
+          </div>
+          <div class="faint" style="font-size:12.5px;margin-left:auto;text-align:right;line-height:1.6;">
+            JPG, PNG, GIF, or WebP<br>Appears in the nav and foursome card
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Auto-booking toggle -->
+    <div class="card" id="booking">
+      <div class="card-head">
+        <div class="ct">
+          <span class="icon-accent">{{ ic('bolt', 17) }}</span>
+          <h2>Automatic booking</h2>
+        </div>
+      </div>
+      <div class="card-body">
+        <form method="POST" action="{{ url_for('settings_booking') }}">
+          <div class="row-between">
+            <div>
+              <div style="font-weight:600;font-size:14.5px;margin-bottom:3px;">
+                {{ 'The Tuesday Man is booking for you' if cfg.booking_active else 'Booking is paused' }}
+              </div>
+              <div class="muted" style="font-size:13px;">
+                When on, your game is booked automatically every week. Turn off to handle it yourself.
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px;">
+              <span style="font-size:13px;font-weight:600;color:{{ 'var(--ok)' if cfg.booking_active else 'var(--idle)' }};display:inline-flex;align-items:center;gap:7px;">
+                <span class="shape shape-{{ 'dot' if cfg.booking_active else 'bars' }}"></span>
+                {{ 'On' if cfg.booking_active else 'Off' }}
+              </span>
+              <label class="toggle" title="Auto-booking">
+                <input type="checkbox" name="booking_active" value="1" onchange="this.form.submit()"
+                       {{ 'checked' if cfg.booking_active }}>
+                <span class="track"></span>
+                <span class="knob">{{ ic('check', 12) }}</span>
+              </label>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Golf credentials -->
+    <div class="card" id="credentials">
+      <div class="card-head">
+        <div class="ct">
+          <span class="icon-accent">{{ ic('lock', 17) }}</span>
+          <h2>Club login</h2>
+          <span class="meta">encrypted</span>
+        </div>
+      </div>
+      <div class="card-body">
+        <form method="POST" action="{{ url_for('settings_credentials') }}" class="settings-block">
+          <div class="note">
+            {{ ic('shield', 15) }}
+            <span>Your Royal Ottawa Golf Club credentials are encrypted at rest using Fernet AES-128. Used only to book your tee time.</span>
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label for="golf_username">Club account email</label>
+              <input class="inp" type="email" id="golf_username" name="golf_username"
+                     value="{{ cfg.golf_username or '' }}" placeholder="your@email.com" />
+            </div>
+            <div class="field">
+              <label for="golf_password_inp">Club password</label>
+              <div class="inp-wrap">
+                <input class="inp mono" type="password" id="golf_password_inp" name="golf_password"
+                       placeholder="Leave blank to keep current" />
+                <button type="button" class="icon-btn" data-pw-toggle="golf_password_inp" aria-label="Show password">
+                  {{ ic('eye', 15) }}
+                </button>
+              </div>
+            </div>
+          </div>
+          <div style="display:flex;justify-content:flex-end;">
+            <button class="btn btn-primary" type="submit">
+              {{ ic('check', 15) }} Save credentials
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Preferred tee times -->
+    <div class="card" id="times">
+      <div class="card-head">
+        <div class="ct">
+          <span class="icon-accent">{{ ic('target', 17) }}</span>
+          <h2>Preferred tee times</h2>
+          <span class="meta">{{ times|length }} in order</span>
+        </div>
+      </div>
+      <!-- Add time row -->
+      <div style="padding:14px var(--pad);border-bottom:1px solid var(--line-soft);display:flex;align-items:center;gap:10px;">
+        <form method="POST" action="{{ url_for('times_add') }}" style="display:flex;align-items:center;gap:10px;flex:1;">
+          <select class="sel" name="new_time" style="max-width:160px;">
+            {% for t in time_opts %}
+            <option value="{{ t }}">{{ t }}</option>
+            {% endfor %}
+          </select>
+          <button class="btn btn-ghost" type="submit" {% if times|length >= 8 %}disabled{% endif %}>
+            {{ ic('plus', 15) }} Add choice
+          </button>
+          <span class="faint" style="font-size:12px;margin-left:auto;">
+            Tries each in order until one is free
+          </span>
+        </form>
+      </div>
+      <!-- Time list -->
+      <div class="card-body flush">
+        {% if times %}
+          {% for t in times %}
+          <div class="tee-row {{ 'is-top' if loop.index == 1 }}">
+            <span class="tee-rank">{{ loop.index }}</span>
+            <span class="tee-time">{{ t }}</span>
+            <span class="tee-tag">
+              {% if loop.index == 1 %}First choice
+              {% elif loop.index == 2 %}Second choice
+              {% else %}{{ loop.index }}{{ 'rd' if loop.index == 3 else 'th' }} choice{% endif %}
+            </span>
+            <div class="tee-actions">
+              <form method="POST" action="{{ url_for('times_move', idx=loop.index0, direction='up') }}" style="display:inline;">
+                <button class="icon-btn" type="submit" {{ 'disabled' if loop.first }} aria-label="Move up">
+                  {{ ic('arrowUp', 15) }}
+                </button>
+              </form>
+              <form method="POST" action="{{ url_for('times_move', idx=loop.index0, direction='down') }}" style="display:inline;">
+                <button class="icon-btn" type="submit" {{ 'disabled' if loop.last }} aria-label="Move down">
+                  {{ ic('arrowDown', 15) }}
+                </button>
+              </form>
+              <form method="POST" action="{{ url_for('times_remove', idx=loop.index0) }}" style="display:inline;">
+                <button class="icon-btn danger" type="submit" {{ 'disabled' if times|length <= 1 }} aria-label="Remove">
+                  {{ ic('trash', 15) }}
+                </button>
+              </form>
+            </div>
+          </div>
+          {% endfor %}
+        {% else %}
+          <div class="empty-state">
+            <div class="icon">{{ ic('target', 28) }}</div>
+            <h3>No times configured</h3>
+            <p>Add at least one preferred tee time above.</p>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Schedule -->
+    <div class="card" id="schedule">
+      <div class="card-head">
+        <div class="ct">
+          <span class="icon-accent">{{ ic('calendar', 17) }}</span>
+          <h2>Schedule</h2>
+        </div>
+      </div>
+      <div class="card-body">
+        <form method="POST" action="{{ url_for('settings_schedule') }}" class="settings-block">
+          <div class="field-row">
+            <div class="field">
+              <label for="play_day">Book for which day</label>
+              <span class="hint">The day of the week you want to play</span>
+              <select class="sel" id="play_day" name="play_day">
+                {% for i, d in enumerate(days) %}
+                <option value="{{ i }}" {{ 'selected' if cfg.play_day == i }}>{{ d }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="field">
+              <label>Booking window opens</label>
+              <span class="hint">When the club releases the tee sheet</span>
+              <div style="display:flex;align-items:center;gap:8px;">
+                <select class="sel" name="opens_hour" style="max-width:80px;">
+                  {% for h in range(1, 13) %}
+                  {% set h12 = cfg.booking_opens_hour % 12 or 12 %}
+                  <option value="{{ h }}" {{ 'selected' if h12 == h }}>{{ '%02d' % h }}</option>
+                  {% endfor %}
+                </select>
+                <span class="mono faint">:</span>
+                <select class="sel" name="opens_min" style="max-width:80px;">
+                  {% for m in [0, 10, 15, 20, 30, 45] %}
+                  <option value="{{ m }}" {{ 'selected' if cfg.booking_opens_min == m }}>{{ '%02d' % m }}</option>
+                  {% endfor %}
+                </select>
+                <select class="sel" name="opens_ampm" style="max-width:78px;">
+                  <option value="AM" {{ 'selected' if cfg.booking_opens_hour < 12 }}>AM</option>
+                  <option value="PM" {{ 'selected' if cfg.booking_opens_hour >= 12 }}>PM</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div class="note">
+            {{ ic('info', 15) }}
+            <span>The Tuesday Man will book your <strong>{{ days[cfg.play_day or 1] }}</strong> game the moment the sheet opens, 6 days ahead. Timezone: <span class="mono">America/Toronto</span>.</span>
+          </div>
+          <div style="display:flex;justify-content:flex-end;">
+            <button class="btn btn-primary" type="submit">{{ ic('check', 15) }} Save schedule</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Notifications -->
+    <div class="card" id="notifications">
+      <div class="card-head">
+        <div class="ct">
+          <span class="icon-accent">{{ ic('bell', 17) }}</span>
+          <h2>Notifications</h2>
+        </div>
+      </div>
+      <div class="card-body">
+        <form method="POST" action="{{ url_for('settings_notifications') }}" class="settings-block">
+          <div class="field">
+            <label for="notification_email">Where to reach you</label>
+            <input class="inp" type="email" id="notification_email" name="notification_email"
+                   value="{{ cfg.notification_email or '' }}" placeholder="your@email.com" />
+          </div>
+          <div class="divline"></div>
+          {% set checks = [
+            ('notify_success',  'Booking secured',        'A tee time was successfully booked', cfg.notify_success),
+            ('notify_fallback', 'Fallback used',          'First choice was taken - a later time was booked', cfg.notify_fallback),
+            ('notify_failure',  'Booking failed',         'The Tuesday Man couldn\'t book - needs your attention', cfg.notify_failure),
+            ('notify_drift',    'Site change detected',   'The club\'s booking page changed structure', cfg.notify_drift),
+            ('notify_weekly',   'Weekly summary',         'A quiet recap every Sunday evening', cfg.notify_weekly),
+          ] %}
+          {% for name, label, sub, checked in checks %}
+          <label class="check-label">
+            <input type="checkbox" name="{{ name }}" value="1" {{ 'checked' if checked }}>
+            <span class="box">{{ ic('check', 13) }}</span>
+            <span class="ct">
+              <span class="cl">{{ label }}</span>
+              <span class="cs">{{ sub }}</span>
+            </span>
+          </label>
+          {% endfor %}
+          <div style="display:flex;justify-content:flex-end;">
+            <button class="btn btn-primary" type="submit">{{ ic('check', 15) }} Save notifications</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Advanced / course settings -->
+    <details style="cursor:pointer;">
+      <summary style="font-size:12px;color:var(--ink-faint);letter-spacing:.08em;text-transform:uppercase;font-weight:600;padding:8px 0;user-select:none;">
+        Advanced - Course settings
+      </summary>
+      <div style="margin-top:12px;" class="card" id="course">
+        <div class="card-head">
+          <div class="ct">
+            <span class="icon-accent">{{ ic('globe', 17) }}</span>
+            <h2>Course settings</h2>
+          </div>
+        </div>
+        <div class="card-body">
+          <form method="POST" action="{{ url_for('settings_course') }}" class="settings-block">
+            <div class="note">
+              {{ ic('info', 15) }}
+              <span>These values come from the Royal Ottawa booking site. Only change them if the site is updated.</span>
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label>Course event ID</label>
+                <input class="inp mono" name="course_event_id" value="{{ cfg.course_event_id or '2079' }}" />
+              </div>
+              <div class="field">
+                <label>Course URL ID</label>
+                <input class="inp mono" name="course_url_id" value="{{ cfg.course_url_id or '27' }}" />
+              </div>
+              <div class="field">
+                <label>Course JSON ID</label>
+                <input class="inp mono" name="course_json_id" type="number" value="{{ cfg.course_json_id or 1 }}" />
+              </div>
+              <div class="field">
+                <label>Buddy group ID</label>
+                <input class="inp mono" name="buddy_group_id" value="{{ cfg.buddy_group_id or '73' }}" />
+              </div>
+              <div class="field">
+                <label>Martin's user ID</label>
+                <input class="inp mono" name="martin_user_id" type="number" value="{{ cfg.martin_user_id or 755 }}" />
+              </div>
+            </div>
+            <div style="display:flex;justify-content:flex-end;">
+              <button class="btn btn-primary" type="submit">{{ ic('check', 15) }} Save course settings</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </details>
+
+  </div><!-- /section-gap -->
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Expose enumerate to Jinja (already handled by Flask via Python's built-in)
+</script>
+{% endblock %}

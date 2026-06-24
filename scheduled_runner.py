@@ -2,11 +2,16 @@
 """
 Cron-fired tee-time booking runner for The Tuesday Man.
 
-Cron line (every Wednesday at 7:25 AM Eastern):
-  25 7 * * 3 /opt/tuesdayman/venv/bin/python /opt/tuesdayman/scheduled_runner.py --scheduled >> /opt/tuesdayman/data/cron.log 2>&1
+Cron lines:
+  Flexible (recommended) — runs every 10 min, fires when DB schedule matches:
+    */10 * * * * /opt/tuesdayman/venv/bin/python /opt/tuesdayman/scheduled_runner.py --auto >> /opt/tuesdayman/data/cron.log 2>&1
+
+  Legacy fixed-time:
+    25 7 * * 3 /opt/tuesdayman/venv/bin/python /opt/tuesdayman/scheduled_runner.py --scheduled >> /opt/tuesdayman/data/cron.log 2>&1
 
 Flags:
-  --scheduled  Respect the booking_active toggle; exit quietly if disabled
+  --auto       Check DB schedule; fire only if today == booking_day and time is in window
+  --scheduled  Respect booking_active toggle; exit quietly if disabled
   --dry-run    Skip wait + Book POST; report slot found or "flow OK"
 """
 
@@ -16,9 +21,11 @@ import logging
 import sqlite3
 import sys
 import time as _time
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
+
+_DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
 BASE_DIR    = Path(__file__).parent
@@ -105,7 +112,7 @@ def run_booking(db_cfg: dict, dry_run: bool) -> int:
     """Run the booking flow. Returns 0 on success/dry-run-OK, 1 on failure."""
     btt.load_config(db_cfg)
 
-    target_date = btt.fmt_date(btt.get_next_tuesday())
+    target_date = btt.fmt_date(btt.get_next_play_day(db_cfg.get('play_day', 1)))
 
     log.info("=" * 60)
     log.info(f"scheduled_runner  dry_run={dry_run}  date={target_date}")
@@ -151,10 +158,46 @@ def run_booking(db_cfg: dict, dry_run: bool) -> int:
     return 0 if (success or dry_run) else 1
 
 
+# ── Auto-mode schedule check ──────────────────────────────────────────────────
+
+def should_run_now(db_cfg: dict):
+    """Return (should_run: bool, reason: str) for --auto mode."""
+    tz          = ZoneInfo(db_cfg.get('timezone', 'America/Toronto'))
+    now         = datetime.now(tz)
+    booking_day = db_cfg.get('booking_day', 2)   # 0=Mon ... 6=Sun
+
+    if now.weekday() != booking_day:
+        return False, f"today={_DAYS[now.weekday()]}, booking_day={_DAYS[booking_day]}"
+
+    bh       = db_cfg.get('booking_opens_hour', 7)
+    bm       = db_cfg.get('booking_opens_min', 30)
+    opens_at = now.replace(hour=bh, minute=bm, second=0, microsecond=0)
+
+    # Window: 11 min before opens up to 3 min after — guarantees a 10-min cron always hits
+    if not (opens_at - timedelta(minutes=11) <= now <= opens_at + timedelta(minutes=3)):
+        return False, f"outside window ({bh:02d}:{bm:02d} ±11 min)"
+
+    # Guard: only run once per calendar day (live runs only)
+    today_str = now.date().isoformat()
+    with get_db() as conn:
+        already = conn.execute(
+            "SELECT id FROM booking_log WHERE date(timestamp) = ? AND dry_run = 0",
+            (today_str,),
+        ).fetchone()
+    if already:
+        return False, "already ran a live booking today"
+
+    return True, f"in window ({bh:02d}:{bm:02d}), {_DAYS[booking_day]}, not yet run"
+
+
 # ── Entry point ───────────────────────────────────────────────────────────────
 
 def main():
     p = argparse.ArgumentParser(description="Royal Ottawa tee-time booking runner")
+    p.add_argument(
+        "--auto", action="store_true",
+        help="Check DB schedule; fire only if today==booking_day and time is in window",
+    )
     p.add_argument(
         "--scheduled", action="store_true",
         help="Respect booking_active toggle; exit quietly if disabled",
@@ -170,6 +213,18 @@ def main():
     except Exception as exc:
         log.error(f"Config load failed: {exc}")
         sys.exit(1)
+
+    if args.auto:
+        if not db_cfg.get("booking_active", 1):
+            log.info("--auto: booking_active=0 — skipping")
+            sys.exit(0)
+        should_run, reason = should_run_now(db_cfg)
+        if not should_run:
+            log.info(f"--auto: skip — {reason}")
+            sys.exit(0)
+        log.info(f"--auto: firing — {reason}")
+        rc = run_booking(db_cfg, dry_run=False)
+        sys.exit(rc)
 
     if args.scheduled and not db_cfg.get("booking_active", 1):
         log.info("booking_active=0 — skipping this run")

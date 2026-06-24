@@ -7,7 +7,7 @@
   <div class="page-head">
     <div class="eyebrow">{{ ic('edit', 13) }} Preferences</div>
     <h1>Settings</h1>
-    <p class="lede">Configure how The Tuesday Man books your Tuesdays.</p>
+    <p class="lede">Configure how The Tuesday Man books your games.</p>
   </div>
 
   <div class="section-gap">
@@ -130,18 +130,17 @@
         <div class="ct">
           <span class="icon-accent">{{ ic('target', 17) }}</span>
           <h2>Preferred tee times</h2>
-          <span class="meta">{{ times|length }} in order</span>
+          <span class="meta" id="times-count">{{ times|length }} in order</span>
         </div>
       </div>
       <!-- Add time row -->
       <div style="padding:14px var(--pad);border-bottom:1px solid var(--line-soft);display:flex;align-items:center;gap:10px;">
-        <form method="POST" action="{{ url_for('times_add') }}" style="display:flex;align-items:center;gap:10px;flex:1;">
-          <select class="sel" name="new_time" style="max-width:160px;">
-            {% for t in time_opts %}
-            <option value="{{ t }}">{{ t }}</option>
-            {% endfor %}
-          </select>
-          <button class="btn btn-ghost" type="submit" {% if times|length >= 8 %}disabled{% endif %}>
+        <form id="times-add-form" method="POST" action="{{ url_for('times_add') }}"
+              style="display:flex;align-items:center;gap:10px;flex:1;">
+          <input class="inp" type="time" name="new_time" id="new-time-input"
+                 style="max-width:150px;" required />
+          <button class="btn btn-ghost" type="submit" id="times-add-btn"
+                  {% if times|length >= 8 %}disabled{% endif %}>
             {{ ic('plus', 15) }} Add choice
           </button>
           <span class="faint" style="font-size:12px;margin-left:auto;">
@@ -149,8 +148,8 @@
           </span>
         </form>
       </div>
-      <!-- Time list -->
-      <div class="card-body flush">
+      <!-- Time list (AJAX-updated) -->
+      <div class="card-body flush" id="times-list">
         {% if times %}
           {% for t in times %}
           <div class="tee-row {{ 'is-top' if loop.index == 1 }}">
@@ -162,17 +161,17 @@
               {% else %}{{ loop.index }}{{ 'rd' if loop.index == 3 else 'th' }} choice{% endif %}
             </span>
             <div class="tee-actions">
-              <form method="POST" action="{{ url_for('times_move', idx=loop.index0, direction='up') }}" style="display:inline;">
+              <form method="POST" action="{{ url_for('times_move', idx=loop.index0, direction='up') }}" class="times-action-form" style="display:inline;">
                 <button class="icon-btn" type="submit" {{ 'disabled' if loop.first }} aria-label="Move up">
                   {{ ic('arrowUp', 15) }}
                 </button>
               </form>
-              <form method="POST" action="{{ url_for('times_move', idx=loop.index0, direction='down') }}" style="display:inline;">
+              <form method="POST" action="{{ url_for('times_move', idx=loop.index0, direction='down') }}" class="times-action-form" style="display:inline;">
                 <button class="icon-btn" type="submit" {{ 'disabled' if loop.last }} aria-label="Move down">
                   {{ ic('arrowDown', 15) }}
                 </button>
               </form>
-              <form method="POST" action="{{ url_for('times_remove', idx=loop.index0) }}" style="display:inline;">
+              <form method="POST" action="{{ url_for('times_remove', idx=loop.index0) }}" class="times-action-form" style="display:inline;">
                 <button class="icon-btn danger" type="submit" {{ 'disabled' if times|length <= 1 }} aria-label="Remove">
                   {{ ic('trash', 15) }}
                 </button>
@@ -202,7 +201,7 @@
         <form method="POST" action="{{ url_for('settings_schedule') }}" class="settings-block">
           <div class="field-row">
             <div class="field">
-              <label for="play_day">Book for which day</label>
+              <label for="play_day">Play day</label>
               <span class="hint">The day of the week you want to play</span>
               <select class="sel" id="play_day" name="play_day">
                 {% for i, d in enumerate(days) %}
@@ -211,31 +210,26 @@
               </select>
             </div>
             <div class="field">
-              <label>Booking window opens</label>
+              <label for="booking_day">Booking runs on</label>
+              <span class="hint">The day the app books the tee time</span>
+              <select class="sel" id="booking_day" name="booking_day">
+                {% for i, d in enumerate(days) %}
+                <option value="{{ i }}" {{ 'selected' if (cfg.booking_day or 2) == i }}>{{ d }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="field">
+              <label for="opens_time">Booking window opens</label>
               <span class="hint">When the club releases the tee sheet</span>
-              <div style="display:flex;align-items:center;gap:8px;">
-                <select class="sel" name="opens_hour" style="max-width:80px;">
-                  {% for h in range(1, 13) %}
-                  {% set h12 = cfg.booking_opens_hour % 12 or 12 %}
-                  <option value="{{ h }}" {{ 'selected' if h12 == h }}>{{ '%02d' % h }}</option>
-                  {% endfor %}
-                </select>
-                <span class="mono faint">:</span>
-                <select class="sel" name="opens_min" style="max-width:80px;">
-                  {% for m in [0, 10, 15, 20, 30, 45] %}
-                  <option value="{{ m }}" {{ 'selected' if cfg.booking_opens_min == m }}>{{ '%02d' % m }}</option>
-                  {% endfor %}
-                </select>
-                <select class="sel" name="opens_ampm" style="max-width:78px;">
-                  <option value="AM" {{ 'selected' if cfg.booking_opens_hour < 12 }}>AM</option>
-                  <option value="PM" {{ 'selected' if cfg.booking_opens_hour >= 12 }}>PM</option>
-                </select>
-              </div>
+              <input class="inp" type="time" id="opens_time" name="opens_time"
+                     value="{{ opens_time_val }}" style="max-width:160px;" required />
             </div>
           </div>
           <div class="note">
             {{ ic('info', 15) }}
-            <span>The Tuesday Man will book your <strong>{{ days[cfg.play_day or 1] }}</strong> game the moment the sheet opens, 6 days ahead. Timezone: <span class="mono">America/Toronto</span>.</span>
+            <span>The app will book your <strong>{{ days[cfg.play_day or 1] }}</strong> game on
+            <strong>{{ days[cfg.booking_day or 2] }}</strong> the moment the sheet opens at
+            <strong>{{ opens_time_val }}</strong>. Timezone: <span class="mono">America/Toronto</span>.</span>
           </div>
           <div style="display:flex;justify-content:flex-end;">
             <button class="btn btn-primary" type="submit">{{ ic('check', 15) }} Save schedule</button>
@@ -338,6 +332,108 @@
 
 {% block scripts %}
 <script>
-// Expose enumerate to Jinja (already handled by Flask via Python's built-in)
+(function () {
+  // SVG icons passed from Jinja for re-rendering times rows
+  const SVG = {
+    arrowUp:   {{ ic('arrowUp',  15) | tojson }},
+    arrowDown: {{ ic('arrowDown',15) | tojson }},
+    trash:     {{ ic('trash',    15) | tojson }},
+  };
+
+  const MOVE_URL_TPL  = {{ url_for('times_move', idx=0, direction='up')    | tojson }};
+  const REMOVE_URL_TPL = {{ url_for('times_remove', idx=0)                 | tojson }};
+  const ADD_URL       = {{ url_for('times_add')                            | tojson }};
+  const MAX_TIMES     = 8;
+
+  function ordinal(n) {
+    if (n === 1) return 'First choice';
+    if (n === 2) return 'Second choice';
+    const s = (n % 100 >= 11 && n % 100 <= 13) ? 'th'
+            : n % 10 === 1 ? 'st' : n % 10 === 2 ? 'nd' : n % 10 === 3 ? 'rd' : 'th';
+    return n + s + ' choice';
+  }
+
+  function renderTimes(times) {
+    const list    = document.getElementById('times-list');
+    const count   = document.getElementById('times-count');
+    const addBtn  = document.getElementById('times-add-btn');
+    if (!list) return;
+
+    if (count) count.textContent = times.length + ' in order';
+    if (addBtn) addBtn.disabled = times.length >= MAX_TIMES;
+
+    if (!times.length) {
+      list.innerHTML =
+        '<div class="empty-state">' +
+        '<div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="28" height="28"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.4" fill="currentColor"/></svg></div>' +
+        '<h3>No times configured</h3><p>Add at least one preferred tee time above.</p></div>';
+      return;
+    }
+
+    list.innerHTML = times.map(function (t, i) {
+      const moveUpUrl   = MOVE_URL_TPL.replace('/0/', '/' + i + '/').replace('/up', '/up');
+      const moveDownUrl = MOVE_URL_TPL.replace('/0/', '/' + i + '/').replace('/up', '/down');
+      const removeUrl   = REMOVE_URL_TPL.replace('/0', '/' + i);
+      return (
+        '<div class="tee-row' + (i === 0 ? ' is-top' : '') + '">' +
+          '<span class="tee-rank">' + (i + 1) + '</span>' +
+          '<span class="tee-time">' + t + '</span>' +
+          '<span class="tee-tag">' + ordinal(i + 1) + '</span>' +
+          '<div class="tee-actions">' +
+            '<form method="POST" action="' + moveUpUrl + '" class="times-action-form" style="display:inline;">' +
+              '<button class="icon-btn" type="submit"' + (i === 0 ? ' disabled' : '') + ' aria-label="Move up">' + SVG.arrowUp + '</button>' +
+            '</form>' +
+            '<form method="POST" action="' + moveDownUrl + '" class="times-action-form" style="display:inline;">' +
+              '<button class="icon-btn" type="submit"' + (i === times.length - 1 ? ' disabled' : '') + ' aria-label="Move down">' + SVG.arrowDown + '</button>' +
+            '</form>' +
+            '<form method="POST" action="' + removeUrl + '" class="times-action-form" style="display:inline;">' +
+              '<button class="icon-btn danger" type="submit"' + (times.length <= 1 ? ' disabled' : '') + ' aria-label="Remove">' + SVG.trash + '</button>' +
+            '</form>' +
+          '</div>' +
+        '</div>'
+      );
+    }).join('');
+
+    attachTimesHandlers();
+  }
+
+  function submitTimesForm(form) {
+    const data = new FormData(form);
+    fetch(form.action, {
+      method: 'POST',
+      body: data,
+      headers: { 'X-Requested-With': 'XMLHttpRequest' },
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (json) { renderTimes(json.times); })
+      .catch(function () { form.submit(); }); // fallback: normal submit
+  }
+
+  function attachTimesHandlers() {
+    document.querySelectorAll('.times-action-form').forEach(function (form) {
+      form.removeEventListener('submit', form._ajaxHandler);
+      form._ajaxHandler = function (e) {
+        e.preventDefault();
+        submitTimesForm(form);
+      };
+      form.addEventListener('submit', form._ajaxHandler);
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    // Wire up existing server-rendered action forms
+    attachTimesHandlers();
+
+    // Wire up add form
+    const addForm = document.getElementById('times-add-form');
+    if (addForm) {
+      addForm.addEventListener('submit', function (e) {
+        e.preventDefault();
+        submitTimesForm(addForm);
+        document.getElementById('new-time-input').value = '';
+      });
+    }
+  });
+})();
 </script>
 {% endblock %}

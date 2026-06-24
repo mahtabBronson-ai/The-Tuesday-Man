@@ -160,12 +160,12 @@ def get_next_booking_info(cfg):
     """Return (run_date, target_date) as datetime objects."""
     tz = ZoneInfo(cfg.get('timezone', 'America/Toronto'))
     now = datetime.now(tz)
-    play_day = cfg.get('play_day', 1)         # 0=Mon, 1=Tue
+    play_day    = cfg.get('play_day', 1)
+    booking_day = cfg.get('booking_day', 2)   # day booking runs (0=Mon, 2=Wed)
     bh = cfg.get('booking_opens_hour', 7)
     bm = cfg.get('booking_opens_min', 30)
-    booking_dow = (play_day + 1) % 7          # booking runs day after play day (prev week)
 
-    days_ahead = (booking_dow - now.weekday()) % 7
+    days_ahead = (booking_day - now.weekday()) % 7
     if days_ahead == 0:
         run_today = now.replace(hour=bh, minute=bm, second=0, microsecond=0)
         if now >= run_today:
@@ -174,7 +174,8 @@ def get_next_booking_info(cfg):
     run_date = (now + timedelta(days=days_ahead)).replace(
         hour=bh, minute=bm, second=0, microsecond=0
     )
-    target_date = run_date + timedelta(days=6)
+    days_to_play = (play_day - run_date.weekday()) % 7 or 7
+    target_date  = run_date + timedelta(days=days_to_play)
     return run_date, target_date
 
 # ── Routes: Auth ───────────────────────────────────────────────────────────────
@@ -368,6 +369,8 @@ def dashboard():
         recent_logs=recent_logs, last_inspector=last_run,
         opens_str=f"{h12}:{bm:02d} {ampm}",
         ordinal=_ordinal,
+        play_day_name=DAYS_OF_WEEK[cfg.get('play_day', 1)],
+        booking_day_name=DAYS_OF_WEEK[cfg.get('booking_day', 2)],
     )
 
 @app.route('/api/run-now', methods=['POST'])
@@ -410,8 +413,12 @@ def run_now():
 def settings():
     cfg = get_config()
     times = get_preferred_times()
+    bh = cfg.get('booking_opens_hour', 7)
+    bm = cfg.get('booking_opens_min', 30)
+    opens_time_val = f"{bh:02d}:{bm:02d}"
     return render_template('settings.html', cfg=cfg, times=times,
-                           days=DAYS_OF_WEEK, time_opts=TIME_OPTS)
+                           days=DAYS_OF_WEEK, time_opts=TIME_OPTS,
+                           opens_time_val=opens_time_val)
 
 @app.route('/settings/booking', methods=['POST'])
 @login_required
@@ -441,19 +448,25 @@ def settings_credentials():
 @login_required
 def settings_schedule():
     try:
-        play_day = int(request.form.get('play_day', 1))
-        hour_raw = int(request.form.get('opens_hour', 7))
-        minute   = int(request.form.get('opens_min', 30))
-        ampm     = request.form.get('opens_ampm', 'AM')
-        if ampm == 'PM' and hour_raw < 12:
-            hour_raw += 12
-        elif ampm == 'AM' and hour_raw == 12:
-            hour_raw = 0
-    except ValueError:
+        play_day    = int(request.form.get('play_day', 1))
+        booking_day = int(request.form.get('booking_day', 2))
+        opens_time  = request.form.get('opens_time', '07:30')
+        h_str, m_str = opens_time.split(':')
+        hour_raw = int(h_str)
+        minute   = int(m_str)
+        if not (0 <= play_day <= 6 and 0 <= booking_day <= 6 and
+                0 <= hour_raw <= 23 and 0 <= minute <= 59):
+            raise ValueError
+    except (ValueError, AttributeError):
         flash('Invalid schedule values.', 'error')
         return redirect(url_for('settings') + '#schedule')
 
-    update_config(play_day=play_day, booking_opens_hour=hour_raw, booking_opens_min=minute)
+    update_config(
+        play_day=play_day,
+        booking_day=booking_day,
+        booking_opens_hour=hour_raw,
+        booking_opens_min=minute,
+    )
     flash('Schedule saved.', 'success')
     return redirect(url_for('settings') + '#schedule')
 
@@ -490,16 +503,37 @@ def settings_course():
     flash('Course settings saved.', 'success')
     return redirect(url_for('settings') + '#course')
 
+def _parse_time_input(raw: str) -> str:
+    """Convert 'HH:MM' (24h browser input) to 'H:MM AM/PM'. Pass-through if already formatted."""
+    raw = raw.strip()
+    if not raw:
+        return ''
+    try:
+        h_str, m_str = raw.split(':')[:2]
+        h, m = int(h_str), int(m_str.split(' ')[0])
+        if not (0 <= h <= 23 and 0 <= m <= 59):
+            return raw
+        ampm = 'AM' if h < 12 else 'PM'
+        h12  = h % 12 or 12
+        return f"{h12}:{m:02d} {ampm}"
+    except (ValueError, AttributeError):
+        return raw
+
+def _times_json_or_redirect(times):
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify({'times': times})
+    return redirect(url_for('settings') + '#times')
+
 # Preferred times CRUD
 @app.route('/settings/times/add', methods=['POST'])
 @login_required
 def times_add():
-    new_time = request.form.get('new_time', '').strip()
+    new_time = _parse_time_input(request.form.get('new_time', ''))
     times = get_preferred_times()
     if new_time and new_time not in times and len(times) < 8:
         times.append(new_time)
         update_config(preferred_times=json.dumps(times))
-    return redirect(url_for('settings') + '#times')
+    return _times_json_or_redirect(times)
 
 @app.route('/settings/times/remove/<int:idx>', methods=['POST'])
 @login_required
@@ -508,7 +542,7 @@ def times_remove(idx):
     if 0 <= idx < len(times) and len(times) > 1:
         times.pop(idx)
         update_config(preferred_times=json.dumps(times))
-    return redirect(url_for('settings') + '#times')
+    return _times_json_or_redirect(times)
 
 @app.route('/settings/times/move/<int:idx>/<direction>', methods=['POST'])
 @login_required
@@ -519,7 +553,7 @@ def times_move(idx, direction):
     elif direction == 'down' and 0 <= idx < len(times) - 1:
         times[idx], times[idx + 1] = times[idx + 1], times[idx]
     update_config(preferred_times=json.dumps(times))
-    return redirect(url_for('settings') + '#times')
+    return _times_json_or_redirect(times)
 
 # ── Routes: Buddies ────────────────────────────────────────────────────────────
 

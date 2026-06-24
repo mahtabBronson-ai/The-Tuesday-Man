@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS config (
     golf_password_enc   TEXT,
     preferred_times     TEXT    DEFAULT '["7:30 AM","7:20 AM","7:40 AM"]',
     play_day            INTEGER DEFAULT 1,
+    booking_day         INTEGER DEFAULT 2,
     booking_opens_hour  INTEGER DEFAULT 7,
     booking_opens_min   INTEGER DEFAULT 30,
     timezone            TEXT    DEFAULT 'America/Toronto',
@@ -103,6 +104,7 @@ def init_db():
         # Migrations for columns added after initial release
         for col, definition in [
             ('profile_picture', 'TEXT'),
+            ('booking_day',     'INTEGER DEFAULT 2'),
         ]:
             try:
                 conn.execute(f"ALTER TABLE config ADD COLUMN {col} {definition}")

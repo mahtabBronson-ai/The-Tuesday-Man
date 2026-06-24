@@ -45,6 +45,7 @@ TIMEZONE              = "America/Toronto"
 BOOKING_OPENS_HOUR    = 7
 BOOKING_OPENS_MINUTE  = 30
 BASE_URL              = "https://royalottawagolfclub.teetimes.totalclubunity.com"
+PLAY_DAY              = 1   # 0=Mon, 1=Tue, ..., 6=Sun
 
 
 def load_config(source) -> None:
@@ -57,7 +58,7 @@ def load_config(source) -> None:
     global USERNAME, PASSWORD, PREFERRED_TIMES, COURSE_EVENT_ID, COURSE_URL_ID
     global COURSE_JSON_ID, BUDDIES, BUDDY_GROUP_ID, BUDDY_USER_IDS
     global TIMEZONE, BOOKING_OPENS_HOUR, BOOKING_OPENS_MINUTE, BASE_URL
-    global SCREENSHOTS, RAW_JSON_FILE, TZ
+    global SCREENSHOTS, RAW_JSON_FILE, TZ, PLAY_DAY
 
     if source == "file":
         from config import (
@@ -95,6 +96,7 @@ def load_config(source) -> None:
         BOOKING_OPENS_HOUR    = int(cfg.get("booking_opens_hour", 7))
         BOOKING_OPENS_MINUTE  = int(cfg.get("booking_opens_min", 30))
         BASE_URL              = "https://royalottawagolfclub.teetimes.totalclubunity.com"
+        PLAY_DAY              = int(cfg.get("play_day", 1))
         buddies               = cfg.get("buddies", [])
         BUDDIES               = [b["name"] for b in buddies]
         BUDDY_USER_IDS        = {b["name"]: b["user_id"] for b in buddies}
@@ -131,9 +133,13 @@ TZ = ZoneInfo(TIMEZONE)
 # ── Date helpers ─────────────────────────────────────────────────────────────
 
 def get_next_tuesday():
-    """Return the date of the next Tuesday (the round to book)."""
+    """Return the date of the next Tuesday (legacy — use get_next_play_day)."""
+    return get_next_play_day(1)
+
+def get_next_play_day(play_day: int = 1):
+    """Return the date of the next occurrence of play_day (0=Mon, 1=Tue, ..., 6=Sun)."""
     today = datetime.now(TZ).date()
-    days_ahead = (1 - today.weekday()) % 7   # Mon=0 Tue=1 ... Sun=6
+    days_ahead = (play_day - today.weekday()) % 7
     if days_ahead == 0:
         days_ahead = 7
     return today + timedelta(days=days_ahead)
@@ -468,7 +474,7 @@ async def run(args):
     dry_run     = args.dry_run
     headless    = not args.show_browser
     do_wait     = args.wait
-    target_date = args.date or fmt_date(get_next_tuesday())
+    target_date = args.date or fmt_date(get_next_play_day(PLAY_DAY))
 
     log.info("=" * 60)
     log.info("Royal Ottawa Golf Club — Tee Time Booker")

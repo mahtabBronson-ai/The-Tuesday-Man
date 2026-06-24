@@ -7,7 +7,7 @@ from functools import wraps
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-import hmac
+from werkzeug.security import generate_password_hash, check_password_hash
 
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_file, session
 from markupsafe import Markup
@@ -112,9 +112,6 @@ def get_buddies():
     with get_db() as conn:
         return conn.execute("SELECT * FROM buddies ORDER BY sort_order, id").fetchall()
 
-LOGIN_USERNAME = 'Martin'
-LOGIN_PASSWORD = 'McGarry'
-
 # ── Auth ───────────────────────────────────────────────────────────────────────
 
 def login_required(f):
@@ -123,8 +120,18 @@ def login_required(f):
         cfg = get_config()
         if not cfg.get('setup_complete'):
             return redirect(url_for('setup'))
-        if not session.get('logged_in'):
+        if not session.get('logged_in') or not session.get('username'):
+            session.clear()
             return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated
+
+def admin_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if session.get('role') != 'admin':
+            flash('Admin access required.', 'error')
+            return redirect(url_for('dashboard'))
         return f(*args, **kwargs)
     return decorated
 
@@ -137,6 +144,8 @@ def inject_globals():
     return {
         'request_endpoint': request.endpoint,
         'logged_in': session.get('logged_in', False),
+        'current_user': session.get('username', ''),
+        'current_role': session.get('role', 'user'),
         'profile_picture_url': url_for('serve_profile_picture') if has_pic else None,
     }
 
@@ -175,21 +184,69 @@ def login():
     cfg = get_config()
     if not cfg.get('setup_complete'):
         return redirect(url_for('setup'))
-    if session.get('logged_in'):
+    if session.get('logged_in') and session.get('username'):
         return redirect(url_for('dashboard'))
 
     if request.method == 'POST':
-        username = request.form.get('username', '')
+        username = request.form.get('username', '').strip()
         password = request.form.get('password', '')
-        user_ok = hmac.compare_digest(username, LOGIN_USERNAME)
-        pass_ok = hmac.compare_digest(password, LOGIN_PASSWORD)
-        if user_ok and pass_ok:
+        with get_db() as conn:
+            user = conn.execute(
+                "SELECT * FROM users WHERE username = ?", (username,)
+            ).fetchone()
+        if user and check_password_hash(user['password_hash'], password):
+            session.clear()
             session['logged_in'] = True
-            session.permanent = True
+            session['user_id']   = user['id']
+            session['username']  = user['username']
+            session['role']      = user['role']
+            session.permanent    = True
+            if user['must_change_password']:
+                return redirect(url_for('account_setup'))
             return redirect(url_for('dashboard'))
         flash('Incorrect username or password.', 'error')
 
     return render_template('login.html')
+
+
+@app.route('/account/setup', methods=['GET', 'POST'])
+def account_setup():
+    if not session.get('logged_in'):
+        return redirect(url_for('login'))
+    with get_db() as conn:
+        user = conn.execute("SELECT * FROM users WHERE id = ?", (session.get('user_id'),)).fetchone()
+    if not user or not user['must_change_password']:
+        return redirect(url_for('dashboard'))
+
+    if request.method == 'POST':
+        new_username = request.form.get('username', '').strip()
+        new_password = request.form.get('password', '')
+        confirm      = request.form.get('confirm', '')
+        if not new_username:
+            flash('Username cannot be empty.', 'error')
+        elif len(new_password) < 6:
+            flash('Password must be at least 6 characters.', 'error')
+        elif new_password != confirm:
+            flash('Passwords do not match.', 'error')
+        else:
+            with get_db() as conn:
+                taken = conn.execute(
+                    "SELECT id FROM users WHERE username = ? AND id != ?",
+                    (new_username, session['user_id'])
+                ).fetchone()
+                if taken:
+                    flash('That username is already taken.', 'error')
+                else:
+                    conn.execute(
+                        "UPDATE users SET username=?, password_hash=?, must_change_password=0 WHERE id=?",
+                        (new_username, generate_password_hash(new_password), session['user_id'])
+                    )
+                    conn.commit()
+            session['username'] = new_username
+            flash('Account set up. Welcome!', 'success')
+            return redirect(url_for('dashboard'))
+
+    return render_template('account_setup.html')
 
 @app.route('/logout')
 def logout():
@@ -541,6 +598,35 @@ def buddies_move(buddy_id, direction):
             conn.execute("UPDATE buddies SET sort_order = ? WHERE id = ?", (order, bid))
         conn.commit()
     return redirect(url_for('buddies'))
+
+# ── Routes: Admin ─────────────────────────────────────────────────────────────
+
+@app.route('/admin/users')
+@login_required
+@admin_required
+def admin_users():
+    with get_db() as conn:
+        users = conn.execute(
+            "SELECT id, username, role, must_change_password FROM users ORDER BY id"
+        ).fetchall()
+    return render_template('admin_users.html', users=users)
+
+@app.route('/admin/users/<int:user_id>/reset', methods=['POST'])
+@login_required
+@admin_required
+def admin_reset_password(user_id):
+    new_password = request.form.get('password', '').strip()
+    if len(new_password) < 6:
+        flash('Password must be at least 6 characters.', 'error')
+        return redirect(url_for('admin_users'))
+    with get_db() as conn:
+        conn.execute(
+            "UPDATE users SET password_hash=?, must_change_password=1 WHERE id=?",
+            (generate_password_hash(new_password), user_id)
+        )
+        conn.commit()
+    flash('Password reset. User will be asked to change it on next login.', 'success')
+    return redirect(url_for('admin_users'))
 
 # ── Routes: Screenshots ────────────────────────────────────────────────────────
 

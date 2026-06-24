@@ -6,11 +6,29 @@ document.addEventListener('DOMContentLoaded', () => {
   const greetEl = document.getElementById('page-greeting');
   if (greetEl) {
     const h = new Date().getHours();
-    const greeting = h >= 5  && h < 12 ? 'Good morning'
-                   : h >= 12 && h < 17 ? 'Good afternoon'
-                   : h >= 17 && h < 21 ? 'Good evening'
-                   : 'Good night';
-    greetEl.textContent = greeting + ', Martin.';
+    const word = h >= 5  && h < 12 ? 'Good morning'
+               : h >= 12 && h < 17 ? 'Good afternoon'
+               : h >= 17 && h < 21 ? 'Good evening'
+               : 'Good night';
+    greetEl.textContent = greetEl.textContent.replace(
+      /^Good (morning|afternoon|evening|night)/i, word
+    );
+  }
+
+  // Profile dropdown toggle
+  const profileBtn      = document.getElementById('profile-btn');
+  const profileDropdown = document.getElementById('profile-dropdown');
+  if (profileBtn && profileDropdown) {
+    profileBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      const open = profileDropdown.classList.toggle('open');
+      profileBtn.setAttribute('aria-expanded', open);
+    });
+    document.addEventListener('click', () => {
+      profileDropdown.classList.remove('open');
+      if (profileBtn) profileBtn.setAttribute('aria-expanded', 'false');
+    });
+    profileDropdown.addEventListener('click', e => e.stopPropagation());
   }
 
   // Hamburger menu toggle

@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+{% block title %}Set Up Your Account - The Tuesday Man{% endblock %}
+
+{% block content %}
+<div class="auth-stage">
+  <div class="auth-card">
+    <div class="auth-brand">
+      <div class="mark">{{ ic('lock', 28) }}</div>
+      <h1>Set up your account</h1>
+      <p>Choose a username and password you'll use to sign in.</p>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for category, message in messages %}
+      <div class="flash-bar flash-{{ category }}" style="margin-bottom:16px;">
+        {% if category == 'success' %}{{ ic('check', 16) }}{% else %}{{ ic('cross', 16) }}{% endif %}
+        {{ message }}
+      </div>
+      {% endfor %}
+    {% endwith %}
+
+    <div class="card">
+      <div class="card-body">
+        <form method="POST">
+          <div class="settings-block">
+            <div class="field">
+              <label for="username">Username</label>
+              <input class="inp" id="username" name="username"
+                     value="{{ current_user }}" required autocomplete="username" />
+            </div>
+            <div class="field">
+              <label for="password">New password</label>
+              <div class="inp-wrap">
+                <input class="inp" id="password" name="password" type="password"
+                       required autocomplete="new-password" placeholder="At least 6 characters" />
+                <button class="icon-btn" type="button" data-pw-toggle="password">{{ ic('eye', 15) }}</button>
+              </div>
+            </div>
+            <div class="field">
+              <label for="confirm">Confirm password</label>
+              <input class="inp" id="confirm" name="confirm" type="password"
+                     required autocomplete="new-password" />
+            </div>
+            <button class="btn btn-primary btn-full" type="submit">
+              {{ ic('check', 15) }} Save and continue
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

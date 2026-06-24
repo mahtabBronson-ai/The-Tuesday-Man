@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+{% block title %}User Management - The Tuesday Man{% endblock %}
+
+{% block content %}
+<div class="page fade-in" style="max-width:640px;">
+
+  <div class="page-head">
+    <div class="eyebrow">{{ ic('shield', 13) }} Admin</div>
+    <h1>User Management</h1>
+    <p class="lede">Manage who can access The Tuesday Man dashboard.</p>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <div class="ct">
+        <span class="icon-accent">{{ ic('users', 17) }}</span>
+        <h2>Users</h2>
+        <span class="meta">{{ users|length }} total</span>
+      </div>
+    </div>
+    <div class="card-body flush">
+      {% for u in users %}
+      <div class="tee-row" style="flex-wrap:wrap;">
+        <span class="avatar" style="background:{{ '#9A7B3F' if u.role == 'admin' else '#1E3A2C' }};width:40px;height:40px;font-size:17px;">
+          {{ u.username[0]|upper }}
+        </span>
+        <div style="flex:1;line-height:1.3;">
+          <div style="font-weight:600;font-size:14.5px;">{{ u.username }}</div>
+          <div class="faint mono" style="font-size:12px;">
+            {{ 'Administrator' if u.role == 'admin' else 'Member' }}
+            {% if u.must_change_password %}
+            <span style="color:var(--warn);"> · must change password</span>
+            {% endif %}
+          </div>
+        </div>
+        {% if u.role != 'admin' %}
+        <button class="icon-btn" type="button" data-edit-toggle="reset-{{ u.id }}" aria-label="Reset password">
+          {{ ic('edit', 15) }}
+        </button>
+        {% endif %}
+        {% if u.role != 'admin' %}
+        <div id="reset-{{ u.id }}" style="display:none;width:100%;padding:10px 4px 4px;">
+          <form method="POST" action="{{ url_for('admin_reset_password', user_id=u.id) }}"
+                style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;">
+            <div class="field" style="flex:1;min-width:160px;margin:0;">
+              <label style="font-size:12px;">New temporary password</label>
+              <input class="inp" name="password" type="text"
+                     placeholder="e.g. Tuesday2026" required minlength="6" />
+            </div>
+            <button class="btn btn-primary" type="submit" style="height:38px;">
+              {{ ic('check', 14) }} Reset
+            </button>
+          </form>
+        </div>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+</div>
+{% endblock %}

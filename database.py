@@ -6,6 +6,14 @@ DATA_DIR.mkdir(exist_ok=True)
 DB_PATH = DATA_DIR / "app.db"
 
 SCHEMA = """
+CREATE TABLE IF NOT EXISTS users (
+    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+    username            TEXT    NOT NULL UNIQUE,
+    password_hash       TEXT    NOT NULL,
+    role                TEXT    NOT NULL DEFAULT 'user',
+    must_change_password INTEGER DEFAULT 0
+);
+
 CREATE TABLE IF NOT EXISTS config (
     id INTEGER PRIMARY KEY CHECK (id = 1),
     app_password_hash   TEXT,
@@ -80,9 +88,18 @@ def get_db():
     return conn
 
 def init_db():
+    from werkzeug.security import generate_password_hash
     with get_db() as conn:
         conn.executescript(SCHEMA)
         conn.execute("INSERT OR IGNORE INTO config (id) VALUES (1)")
+        conn.execute(
+            "INSERT OR IGNORE INTO users (username, password_hash, role, must_change_password) VALUES (?,?,?,?)",
+            ('Admin', generate_password_hash('mahtab@bronson.ai'), 'admin', 0)
+        )
+        conn.execute(
+            "INSERT OR IGNORE INTO users (username, password_hash, role, must_change_password) VALUES (?,?,?,?)",
+            ('Martin', generate_password_hash('McGarry'), 'user', 1)
+        )
         # Migrations for columns added after initial release
         for col, definition in [
             ('profile_picture', 'TEXT'),

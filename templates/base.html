@@ -31,19 +31,28 @@
   </nav>
 
   <div class="nav-tail">
-    <div class="who">
-      <div class="label">
-        <div class="n">Martin</div>
-        <div class="r">Member</div>
+    <div class="who" style="position:relative;">
+      <button class="who-btn" id="profile-btn" type="button" aria-label="Account menu" aria-expanded="false">
+        <div class="label">
+          <div class="n">{{ current_user }}</div>
+          <div class="r">{{ 'Admin' if current_role == 'admin' else 'Member' }}</div>
+        </div>
+        {% if profile_picture_url %}
+        <img src="{{ profile_picture_url }}" alt="{{ current_user }}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;flex-shrink:0;">
+        {% else %}
+        <span class="avatar lead" style="background:{{ '#9A7B3F' if current_role == 'admin' else '#1E3A2C' }};width:36px;height:36px;font-size:15px;">{{ (current_user[0]|upper) if current_user else 'M' }}</span>
+        {% endif %}
+      </button>
+      <div class="profile-dropdown" id="profile-dropdown">
+        <div class="dropdown-header">
+          <div style="font-weight:600;font-size:13.5px;">{{ current_user }}</div>
+          <div style="font-size:11.5px;color:var(--ink-faint);margin-top:2px;">{{ 'Administrator' if current_role == 'admin' else 'Member' }}</div>
+        </div>
+        {% if current_role == 'admin' %}
+        <a href="{{ url_for('admin_users') }}" class="dropdown-item">{{ ic('users', 14) }} User management</a>
+        {% endif %}
+        <a href="{{ url_for('logout') }}" class="dropdown-item dropdown-danger">{{ ic('signout', 14) }} Sign out</a>
       </div>
-      {% if profile_picture_url %}
-      <img src="{{ profile_picture_url }}" alt="Martin" style="width:36px;height:36px;border-radius:50%;object-fit:cover;flex-shrink:0;">
-      {% else %}
-      <span class="avatar lead" style="background:#1E3A2C;width:36px;height:36px;font-size:15px;">M</span>
-      {% endif %}
-      <a href="{{ url_for('logout') }}" class="btn btn-quiet" style="font-size:12.5px;gap:6px;padding:6px 10px;">
-        {{ ic('signout', 14) }}<span class="signout-label">Sign out</span>
-      </a>
     </div>
   </div>
   <button class="menu-toggle" id="menu-toggle" aria-label="Open menu">

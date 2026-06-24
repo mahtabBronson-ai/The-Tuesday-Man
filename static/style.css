@@ -485,6 +485,14 @@ body::before {
   .topnav a { padding: 13px 14px; font-size: 15px; border-radius: 10px; }
   .topnav a.active::after { display: none; }
 
+  /* brand: keep on one line, shrink text */
+  .brand { flex: 1; min-width: 0; }
+  .brand .name { font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .brand .mark { width: 28px; height: 28px; flex: none; }
+
+  /* hide sign-out label on mobile, keep icon */
+  .btn-quiet span, .btn-quiet .signout-label { display: none; }
+
   .stat-grid  { grid-template-columns: 1fr; }
   .check-grid { grid-template-columns: 1fr; }
   .field-row  { grid-template-columns: 1fr; }

@@ -1,11 +1,9 @@
-/* The Tuesday Man - ported from the JSX design spec */
-
-@import url('https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Hanken+Grotesk:wght@400;500;600;700&family=Spline+Sans+Mono:wght@400;500;600&display=swap');
+/* The Tuesday Man */
 
 :root {
-  --font-display: 'Spectral', Georgia, serif;
-  --font-ui:      'Hanken Grotesk', system-ui, sans-serif;
-  --font-mono:    'Spline Sans Mono', ui-monospace, monospace;
+  --font-display: 'Inter', system-ui, sans-serif;
+  --font-ui:      'Inter', system-ui, sans-serif;
+  --font-mono:    ui-monospace, 'Courier New', monospace;
 
   --bg:        #F1EADA;
   --bg-grain:  #ECE3D0;
@@ -436,14 +434,67 @@ body::before {
 .empty-state h3 { font-family: var(--font-display); font-weight: 500; font-size: 20px; margin: 0 0 8px; color: var(--ink-soft); }
 .empty-state p  { font-size: 13.5px; max-width: 34ch; margin: 0 auto; }
 
+/* ================== HAMBURGER ================== */
+.menu-toggle {
+  display: none;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 7px;
+  border-radius: 8px;
+  color: var(--ink);
+  flex: none;
+}
+.menu-toggle span {
+  display: block;
+  width: 22px;
+  height: 2px;
+  background: currentColor;
+  border-radius: 2px;
+  transition: transform .2s, opacity .2s;
+}
+.menu-toggle.open span:nth-child(1) { transform: rotate(45deg) translate(5px, 5px); }
+.menu-toggle.open span:nth-child(2) { opacity: 0; }
+.menu-toggle.open span:nth-child(3) { transform: rotate(-45deg) translate(5px, -5px); }
+
 /* ================== RESPONSIVE ================== */
 @media (max-width: 720px) {
-  .topbar { padding: 0 16px; height: auto; flex-wrap: wrap; gap: 8px; padding-top: 10px; padding-bottom: 10px; }
-  .topnav { order: 3; width: 100%; overflow-x: auto; }
-  .stat-grid { grid-template-columns: 1fr; }
+  .topbar {
+    padding: 0 16px;
+    height: 58px;
+    position: sticky; top: 0; z-index: 30;
+  }
+  .menu-toggle { display: flex; }
+
+  .topnav {
+    display: none;
+    flex-direction: column;
+    position: fixed;
+    top: 58px; left: 0; right: 0;
+    background: var(--surface);
+    border-bottom: 1px solid var(--line);
+    box-shadow: var(--shadow);
+    padding: 10px 14px 16px;
+    z-index: 29;
+    gap: 2px;
+  }
+  .topnav.open { display: flex; }
+  .topnav a { padding: 13px 14px; font-size: 15px; border-radius: 10px; }
+  .topnav a.active::after { display: none; }
+
+  .stat-grid  { grid-template-columns: 1fr; }
   .check-grid { grid-template-columns: 1fr; }
   .field-row  { grid-template-columns: 1fr; }
   .who .label { display: none; }
-  .page-wrap  { padding: 28px 14px 70px; }
+  .page-wrap  { padding: 24px 14px 70px; }
   .hist-date  { width: 70px; }
+  .card-head  { flex-wrap: wrap; gap: 10px; }
+  .legend     { display: none; }
+
+  /* tables scroll horizontally on small screens */
+  .card-body.flush { overflow-x: auto; }
+  .tbl th, .tbl td { padding: 12px 16px; }
 }

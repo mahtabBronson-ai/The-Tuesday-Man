@@ -6,7 +6,7 @@
 <title>{% block title %}The Tuesday Man{% endblock %}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Hanken+Grotesk:wght@400;500;600;700&family=Spline+Sans+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
 {% block head %}{% endblock %}
 </head>
@@ -22,7 +22,7 @@
     </div>
   </a>
 
-  <nav class="topnav">
+  <nav class="topnav" id="topnav">
     <a href="{{ url_for('dashboard') }}" class="{{ 'active' if request_endpoint == 'dashboard' }}">Dashboard</a>
     <a href="{{ url_for('settings') }}"  class="{{ 'active' if request_endpoint in ('settings','settings_credentials','settings_booking','settings_schedule','settings_notifications','settings_course','times_add','times_remove','times_move') }}">Settings</a>
     <a href="{{ url_for('buddies') }}"   class="{{ 'active' if request_endpoint in ('buddies','buddies_add','buddies_remove','buddies_move') }}">Buddies</a>
@@ -46,6 +46,9 @@
       </a>
     </div>
   </div>
+  <button class="menu-toggle" id="menu-toggle" aria-label="Open menu">
+    <span></span><span></span><span></span>
+  </button>
 </header>
 {% endif %}
 

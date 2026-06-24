@@ -2,6 +2,35 @@
 
 // Password reveal toggle
 document.addEventListener('DOMContentLoaded', () => {
+  // Dynamic greeting based on local time
+  const greetEl = document.getElementById('page-greeting');
+  if (greetEl) {
+    const h = new Date().getHours();
+    const greeting = h >= 5  && h < 12 ? 'Good morning'
+                   : h >= 12 && h < 17 ? 'Good afternoon'
+                   : h >= 17 && h < 21 ? 'Good evening'
+                   : 'Good night';
+    greetEl.textContent = greeting + ', Martin.';
+  }
+
+  // Hamburger menu toggle
+  const menuBtn = document.getElementById('menu-toggle');
+  const topnav  = document.getElementById('topnav');
+  if (menuBtn && topnav) {
+    menuBtn.addEventListener('click', () => {
+      const open = topnav.classList.toggle('open');
+      menuBtn.classList.toggle('open', open);
+      menuBtn.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
+    });
+    // Close menu when a nav link is tapped
+    topnav.querySelectorAll('a').forEach(a => {
+      a.addEventListener('click', () => {
+        topnav.classList.remove('open');
+        menuBtn.classList.remove('open');
+      });
+    });
+  }
+
   document.querySelectorAll('[data-pw-toggle]').forEach(btn => {
     const targetId = btn.dataset.pwToggle;
     const input = document.getElementById(targetId);

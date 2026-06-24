@@ -429,8 +429,14 @@
     if (addForm) {
       addForm.addEventListener('submit', function (e) {
         e.preventDefault();
+        const input = document.getElementById('new-time-input');
+        if (!input || !input.value) {
+          if (input) { input.focus(); input.style.outline = '2px solid var(--err)'; }
+          return;
+        }
+        if (input) input.style.outline = '';
         submitTimesForm(addForm);
-        document.getElementById('new-time-input').value = '';
+        input.value = '';
       });
     }
   });

@@ -112,7 +112,18 @@ def run_booking(db_cfg: dict, dry_run: bool) -> int:
     """Run the booking flow. Returns 0 on success/dry-run-OK, 1 on failure."""
     btt.load_config(db_cfg)
 
-    target_date = btt.fmt_date(btt.get_next_play_day(db_cfg.get('play_day', 1)))
+    # Use explicit override date if set, otherwise compute next play day
+    override = (db_cfg.get('booking_target_date') or '').strip()
+    if override:
+        from datetime import date as _date
+        try:
+            d = _date.fromisoformat(override)
+            target_date = btt.fmt_date(d)
+        except ValueError:
+            log.warning(f"Invalid booking_target_date '{override}' — falling back to auto")
+            target_date = btt.fmt_date(btt.get_next_play_day(db_cfg.get('play_day', 1)))
+    else:
+        target_date = btt.fmt_date(btt.get_next_play_day(db_cfg.get('play_day', 1)))
 
     log.info("=" * 60)
     log.info(f"scheduled_runner  dry_run={dry_run}  date={target_date}")
@@ -224,6 +235,12 @@ def main():
             sys.exit(0)
         log.info(f"--auto: firing — {reason}")
         rc = run_booking(db_cfg, dry_run=False)
+        # Clear one-shot target date so it doesn't repeat next week
+        if db_cfg.get('booking_target_date'):
+            with get_db() as conn:
+                conn.execute("UPDATE config SET booking_target_date = NULL WHERE id = 1")
+                conn.commit()
+            log.info("--auto: cleared booking_target_date after run")
         sys.exit(rc)
 
     if args.scheduled and not db_cfg.get("booking_active", 1):

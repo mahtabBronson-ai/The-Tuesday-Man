@@ -225,11 +225,23 @@
                      value="{{ opens_time_val }}" style="max-width:160px;" required />
             </div>
           </div>
+          <div class="field">
+            <label for="booking_target_date">Target date <span class="faint" style="font-weight:400;">(optional)</span></label>
+            <span class="hint">Book for this exact date — overrides "Play day". Leave blank to auto-compute.</span>
+            <input class="inp" type="date" id="booking_target_date" name="booking_target_date"
+                   value="{{ cfg.booking_target_date or '' }}" style="max-width:200px;" />
+          </div>
           <div class="note">
             {{ ic('info', 15) }}
-            <span>The app will book your <strong>{{ days[cfg.play_day or 1] }}</strong> game on
-            <strong>{{ days[cfg.booking_day or 2] }}</strong> the moment the sheet opens at
+            {% if cfg.booking_target_date %}
+            <span>Will book for the specific date <strong>{{ cfg.booking_target_date }}</strong> on
+            <strong>{{ days[cfg.booking_day or 2] }}</strong> when the sheet opens at
+            <strong>{{ opens_time_val }}</strong>. Clears automatically after it runs.</span>
+            {% else %}
+            <span>Will book your next <strong>{{ days[cfg.play_day or 1] }}</strong> on
+            <strong>{{ days[cfg.booking_day or 2] }}</strong> when the sheet opens at
             <strong>{{ opens_time_val }}</strong>. Timezone: <span class="mono">America/Toronto</span>.</span>
+            {% endif %}
           </div>
           <div style="display:flex;justify-content:flex-end;">
             <button class="btn btn-primary" type="submit">{{ ic('check', 15) }} Save schedule</button>

@@ -461,11 +461,13 @@ def settings_schedule():
         flash('Invalid schedule values.', 'error')
         return redirect(url_for('settings') + '#schedule')
 
+    target_date_raw = request.form.get('booking_target_date', '').strip()
     update_config(
         play_day=play_day,
         booking_day=booking_day,
         booking_opens_hour=hour_raw,
         booking_opens_min=minute,
+        booking_target_date=target_date_raw or None,
     )
     flash('Schedule saved.', 'success')
     return redirect(url_for('settings') + '#schedule')

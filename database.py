@@ -103,8 +103,9 @@ def init_db():
         )
         # Migrations for columns added after initial release
         for col, definition in [
-            ('profile_picture', 'TEXT'),
-            ('booking_day',     'INTEGER DEFAULT 2'),
+            ('profile_picture',     'TEXT'),
+            ('booking_day',         'INTEGER DEFAULT 2'),
+            ('booking_target_date', 'TEXT'),
         ]:
             try:
                 conn.execute(f"ALTER TABLE config ADD COLUMN {col} {definition}")

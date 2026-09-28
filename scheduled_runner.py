@@ -133,7 +133,7 @@ def run_booking(db_cfg: dict, dry_run: bool) -> int:
         dry_run      = dry_run,
         show_browser = False,
         wait         = not dry_run,  # live run waits until 7:30; dry-run skips
-        date         = None,
+        date         = target_date,  # honour the override; btt.run() would otherwise recompute
     )
 
     t0 = _time.perf_counter()
@@ -163,6 +163,7 @@ def run_booking(db_cfg: dict, dry_run: bool) -> int:
             status      = status,
             target_date = target_date,
             duration_ms = elapsed_ms,
+            log_text    = btt.LAST_ERROR or None,
             dry_run     = dry_run,
         )
 
@@ -201,6 +202,31 @@ def should_run_now(db_cfg: dict):
     return True, f"in window ({bh:02d}:{bm:02d}), {_DAYS[booking_day]}, not yet run"
 
 
+# ── Single-instance lock ──────────────────────────────────────────────────────
+
+LOCK_FILE        = DATA_DIR / "runner.lock"
+RUNNER_BUSY_EXIT = 3   # exit code when skipped because another run holds the lock (app.py checks it)
+
+
+def acquire_run_lock():
+    """Return an open lock handle, or None if another runner holds it.
+
+    The OS releases the lock when the process exits, so a crash never leaves
+    a stale lock behind. No-op on Windows (local dev) where fcntl is missing.
+    """
+    try:
+        import fcntl
+    except ImportError:
+        return True
+    fh = open(LOCK_FILE, "w")
+    try:
+        fcntl.flock(fh, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        fh.close()
+        return None
+    return fh
+
+
 # ── Entry point ───────────────────────────────────────────────────────────────
 
 def main():
@@ -218,6 +244,14 @@ def main():
         help="Skip wait and Book POST; report slot found or flow-OK",
     )
     args = p.parse_args()
+
+    # Only one runner at a time. The 7:20 --auto run is still waiting for 7:30
+    # when the 7:30 cron tick fires; a second login with the same account kills
+    # the first run's session mid-booking.
+    lock = acquire_run_lock()
+    if lock is None:
+        log.info("another runner is already in progress — skipping")
+        sys.exit(RUNNER_BUSY_EXIT)
 
     try:
         db_cfg = load_db_config()

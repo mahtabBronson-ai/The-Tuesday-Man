@@ -46,6 +46,7 @@ BOOKING_OPENS_HOUR    = 7
 BOOKING_OPENS_MINUTE  = 30
 BASE_URL              = "https://royalottawagolfclub.teetimes.totalclubunity.com"
 PLAY_DAY              = 1   # 0=Mon, 1=Tue, ..., 6=Sun
+LAST_ERROR            = ""  # one-line failure reason from the last run(), read by scheduled_runner
 
 
 def load_config(source) -> None:
@@ -308,6 +309,18 @@ def find_best_slot(data: dict | list) -> dict | None:
     return None
 
 
+def log_offered_times(data: dict | list) -> None:
+    """Log every slot the sheet offered on our course, so a miss is diagnosable."""
+    slots: list = data.get("teetimes", []) if isinstance(data, dict) else (data or [])
+    offered = sorted(
+        (s.get("teedatetime", ""), _slot_local_time(s), s.get("available_spots", 0), s.get("bookable", False))
+        for s in slots if s.get("course_id") == COURSE_JSON_ID
+    )
+    log.info(f"  Course {COURSE_JSON_ID} times on sheet ({len(offered)}):")
+    for _, t, avail, ok in offered:
+        log.info(f"    {t:>8}  spots={avail}  bookable={ok}")
+
+
 # ── Step 5: Place hold ────────────────────────────────────────────────────────
 
 async def place_hold(page: Page, teetime_id: int | str):
@@ -471,6 +484,8 @@ async def wait_until_open(page: Page):
 # ── Orchestrator ──────────────────────────────────────────────────────────────
 
 async def run(args):
+    global LAST_ERROR
+    LAST_ERROR  = ""
     dry_run     = args.dry_run
     headless    = not args.show_browser
     do_wait     = args.wait
@@ -519,9 +534,12 @@ async def run(args):
 
             if not slot:
                 if dry_run:
+                    log_offered_times(data)
                     log.info("[DRY RUN] Flow OK — no bookable slot right now (normal outside the window)")
                     return True
                 log.error("No preferred tee times available after retries. Check tee_times_raw.json.")
+                log_offered_times(data)
+                LAST_ERROR = f"None of {', '.join(PREFERRED_TIMES)} bookable on {target_date}"
                 await ss(page, "error_no_slots")
                 return False
 
@@ -547,6 +565,8 @@ async def run(args):
 
             # ── Verify ────────────────────────────────────────────────────
             success = await verify_success(page)
+            if not success:
+                LAST_ERROR = f"Held {slot['time']} but no confirmation page (ended at {page.url})"
 
             elapsed = _time.perf_counter() - t_start
             log.info(f"Total time from 7:30 AM: {elapsed:.2f}s")
@@ -554,6 +574,7 @@ async def run(args):
 
         except Exception as exc:
             log.error(f"FATAL: {exc}", exc_info=True)
+            LAST_ERROR = f"{type(exc).__name__}: {str(exc).splitlines()[0][:200] if str(exc) else ''}"
             try:
                 await ss(page, "fatal_error")
             except Exception:

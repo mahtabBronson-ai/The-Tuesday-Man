@@ -33,6 +33,7 @@ else:
 init_db()
 
 DAYS_OF_WEEK = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+RUNNER_BUSY_EXIT = 3   # scheduled_runner.py exits with this when another run holds the lock
 BUDDY_COLORS = ["#1E3A2C", "#7A4B1E", "#3B4C7A", "#6B2E4E", "#2C5840", "#5A4B7A"]
 TIME_OPTS = [
     "6:30 AM", "6:40 AM", "6:50 AM",
@@ -378,11 +379,13 @@ def dashboard():
 def run_now():
     runner = Path(__file__).parent / 'scheduled_runner.py'
     try:
-        subprocess.run(
+        result = subprocess.run(
             [sys.executable, str(runner), '--dry-run'],
             capture_output=True, text=True, timeout=120,
             cwd=str(Path(__file__).parent),
         )
+        if result.returncode == RUNNER_BUSY_EXIT:
+            return jsonify({'status': 'error', 'message': 'A booking run is in progress — try again in a few minutes.'})
     except subprocess.TimeoutExpired:
         return jsonify({'status': 'error', 'message': 'Dry run timed out after 120s.'})
     except Exception as e:
